@@ -33,6 +33,10 @@ impl Parser {
             TokenType::Identifier,
             Self::parse_identifier as PrefixParseFn,
         );
+        parser.register_prefix(
+            TokenType::IntLiteral,
+            Self::parse_integer_literal as PrefixParseFn,
+        );
 
         parser
     }
@@ -171,6 +175,18 @@ impl Parser {
             None
         }
     }
+
+    fn parse_integer_literal(&mut self) -> Option<Expression> {
+        if let TokenType::IntLiteral = self.current_token.token_type {
+            if let Ok(int) = self.current_token.literal.parse::<i64>() {
+                Some(Expression::IntegerLiteral(int))
+            } else {
+                None
+            }
+        } else {
+            None
+        }
+    }
 }
 
 #[cfg(test)]
@@ -289,6 +305,8 @@ mod tests {
         let input = "
             foo;
             bar
+            5;
+            10;
         ";
 
         let lexer = Lexer::new(input);
@@ -305,13 +323,15 @@ mod tests {
 
         assert_eq!(
             program.statements.len(),
-            2,
+            4,
             "Unexpected number of statements"
         );
 
         let expected_values = vec![
             Expression::Identifier("foo".to_string()),
             Expression::Identifier("bar".to_string()),
+            Expression::IntegerLiteral(5),
+            Expression::IntegerLiteral(10),
         ];
 
         for (i, v) in expected_values.iter().enumerate() {
