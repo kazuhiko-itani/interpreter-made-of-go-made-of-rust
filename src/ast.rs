@@ -4,6 +4,7 @@ use std::fmt;
 pub enum Statement {
     Let(String, Expression),
     Return(Expression),
+    Expression(Expression),
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -39,4 +40,14 @@ impl fmt::Display for Expression {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Program {
     pub statements: Vec<Statement>,
+}
+
+pub enum Precedence {
+    Lowest,
+    Equals,
+    LessGreater,
+    Sum,
+    Product,
+    Prefix,
+    Call,
 }

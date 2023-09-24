@@ -1,4 +1,4 @@
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum TokenType {
     Let,
     TRUE,
@@ -8,9 +8,9 @@ pub enum TokenType {
     RETURN,
     Eq,
     NotEq,
-    Identifier(String),
+    Identifier,
     Assign,
-    IntLiteral(i64),
+    IntLiteral,
     Function,
     LParen,
     RParen,
@@ -31,7 +31,7 @@ pub enum TokenType {
 #[derive(Debug, Clone)]
 pub struct Token {
     pub token_type: TokenType,
-    literal: String,
+    pub literal: String,
 }
 
 pub struct Lexer {
@@ -156,7 +156,7 @@ impl Lexer {
                     "if" => TokenType::IF,
                     "else" => TokenType::ELSE,
                     "return" => TokenType::RETURN,
-                    _ => TokenType::Identifier(literal.clone()),
+                    _ => TokenType::Identifier,
                 };
 
                 return Token {
@@ -167,7 +167,7 @@ impl Lexer {
             Some(ch) if ch.is_numeric() => {
                 let literal = self.read_number();
                 return Token {
-                    token_type: TokenType::IntLiteral(literal.parse().unwrap()),
+                    token_type: TokenType::IntLiteral,
                     literal,
                 };
             }
@@ -301,7 +301,7 @@ mod tests {
                 literal: "let".to_string(),
             },
             Token {
-                token_type: TokenType::Identifier("five".to_string()),
+                token_type: TokenType::Identifier,
                 literal: "five".to_string(),
             },
             Token {
@@ -309,7 +309,7 @@ mod tests {
                 literal: "=".to_string(),
             },
             Token {
-                token_type: TokenType::IntLiteral(5),
+                token_type: TokenType::IntLiteral,
                 literal: "5".to_string(),
             },
             Token {
@@ -321,7 +321,7 @@ mod tests {
                 literal: "let".to_string(),
             },
             Token {
-                token_type: TokenType::Identifier("ten".to_string()),
+                token_type: TokenType::Identifier,
                 literal: "ten".to_string(),
             },
             Token {
@@ -329,7 +329,7 @@ mod tests {
                 literal: "=".to_string(),
             },
             Token {
-                token_type: TokenType::IntLiteral(10),
+                token_type: TokenType::IntLiteral,
                 literal: "10".to_string(),
             },
             Token {
@@ -341,7 +341,7 @@ mod tests {
                 literal: "let".to_string(),
             },
             Token {
-                token_type: TokenType::Identifier("add".to_string()),
+                token_type: TokenType::Identifier,
                 literal: "add".to_string(),
             },
             Token {
@@ -357,7 +357,7 @@ mod tests {
                 literal: "(".to_string(),
             },
             Token {
-                token_type: TokenType::Identifier("x".to_string()),
+                token_type: TokenType::Identifier,
                 literal: "x".to_string(),
             },
             Token {
@@ -365,7 +365,7 @@ mod tests {
                 literal: ",".to_string(),
             },
             Token {
-                token_type: TokenType::Identifier("y".to_string()),
+                token_type: TokenType::Identifier,
                 literal: "y".to_string(),
             },
             Token {
@@ -377,7 +377,7 @@ mod tests {
                 literal: "{".to_string(),
             },
             Token {
-                token_type: TokenType::Identifier("x".to_string()),
+                token_type: TokenType::Identifier,
                 literal: "x".to_string(),
             },
             Token {
@@ -385,7 +385,7 @@ mod tests {
                 literal: "+".to_string(),
             },
             Token {
-                token_type: TokenType::Identifier("y".to_string()),
+                token_type: TokenType::Identifier,
                 literal: "y".to_string(),
             },
             Token {
@@ -405,7 +405,7 @@ mod tests {
                 literal: "let".to_string(),
             },
             Token {
-                token_type: TokenType::Identifier("result".to_string()),
+                token_type: TokenType::Identifier,
                 literal: "result".to_string(),
             },
             Token {
@@ -413,7 +413,7 @@ mod tests {
                 literal: "=".to_string(),
             },
             Token {
-                token_type: TokenType::Identifier("add".to_string()),
+                token_type: TokenType::Identifier,
                 literal: "add".to_string(),
             },
             Token {
@@ -421,7 +421,7 @@ mod tests {
                 literal: "(".to_string(),
             },
             Token {
-                token_type: TokenType::Identifier("five".to_string()),
+                token_type: TokenType::Identifier,
                 literal: "five".to_string(),
             },
             Token {
@@ -429,7 +429,7 @@ mod tests {
                 literal: ",".to_string(),
             },
             Token {
-                token_type: TokenType::Identifier("ten".to_string()),
+                token_type: TokenType::Identifier,
                 literal: "ten".to_string(),
             },
             Token {
@@ -457,7 +457,7 @@ mod tests {
                 literal: "*".to_string(),
             },
             Token {
-                token_type: TokenType::IntLiteral(5),
+                token_type: TokenType::IntLiteral,
                 literal: "5".to_string(),
             },
             Token {
@@ -465,7 +465,7 @@ mod tests {
                 literal: ";".to_string(),
             },
             Token {
-                token_type: TokenType::IntLiteral(5),
+                token_type: TokenType::IntLiteral,
                 literal: "5".to_string(),
             },
             Token {
@@ -473,7 +473,7 @@ mod tests {
                 literal: "<".to_string(),
             },
             Token {
-                token_type: TokenType::IntLiteral(10),
+                token_type: TokenType::IntLiteral,
                 literal: "10".to_string(),
             },
             Token {
@@ -481,7 +481,7 @@ mod tests {
                 literal: ">".to_string(),
             },
             Token {
-                token_type: TokenType::IntLiteral(5),
+                token_type: TokenType::IntLiteral,
                 literal: "5".to_string(),
             },
             Token {
@@ -497,7 +497,7 @@ mod tests {
                 literal: "(".to_string(),
             },
             Token {
-                token_type: TokenType::IntLiteral(5),
+                token_type: TokenType::IntLiteral,
                 literal: "5".to_string(),
             },
             Token {
@@ -505,7 +505,7 @@ mod tests {
                 literal: "<".to_string(),
             },
             Token {
-                token_type: TokenType::IntLiteral(10),
+                token_type: TokenType::IntLiteral,
                 literal: "10".to_string(),
             },
             Token {
@@ -557,7 +557,7 @@ mod tests {
                 literal: "}".to_string(),
             },
             Token {
-                token_type: TokenType::IntLiteral(10),
+                token_type: TokenType::IntLiteral,
                 literal: "10".to_string(),
             },
             Token {
@@ -565,7 +565,7 @@ mod tests {
                 literal: "==".to_string(),
             },
             Token {
-                token_type: TokenType::IntLiteral(10),
+                token_type: TokenType::IntLiteral,
                 literal: "10".to_string(),
             },
             Token {
@@ -573,7 +573,7 @@ mod tests {
                 literal: ";".to_string(),
             },
             Token {
-                token_type: TokenType::IntLiteral(10),
+                token_type: TokenType::IntLiteral,
                 literal: "10".to_string(),
             },
             Token {
@@ -581,7 +581,7 @@ mod tests {
                 literal: "!=".to_string(),
             },
             Token {
-                token_type: TokenType::IntLiteral(9),
+                token_type: TokenType::IntLiteral,
                 literal: "9".to_string(),
             },
             Token {
