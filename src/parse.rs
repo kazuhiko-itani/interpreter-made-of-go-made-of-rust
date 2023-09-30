@@ -293,36 +293,51 @@ mod tests {
     use crate::tokenize::Lexer;
 
     #[test]
-    fn test_string() {
-        let program = Program {
-            statements: vec![
-                Statement::Let("x".to_string(), Expression::IntegerLiteral(10)),
-                Statement::Return(Expression::IntegerLiteral(5)),
-                Statement::Expression(Expression::Ident("foobar".to_string())),
-                Statement::Expression(Expression::Prefix(
-                    "!".to_string(),
-                    Box::new(Expression::Ident("foo".to_string())),
-                )),
-            ],
-        };
+    fn test_parser() {
+        let input = "
+            let x = 5;
+            let y = 10;
+            return 5;
+            foobar;
+            !foo;
+            1 + 2;
+            1 * 2 + 3;
+            3 / 2 - 1;
+            -1 * 2 + 3;
+            10 > 5;
+            5 < 10;
+            3 * 2 + 1 > 1;
+            3 * 2 + 1 == 7;
+            3 * 2 + 1 != 10;
+        ";
 
-        let lexer = Lexer::new("");
-        let parser = Parser::new(lexer);
+        let lexer = Lexer::new(input);
+        let mut parser = Parser::new(lexer);
 
+        let program = parser.parse_program();
         let program_string = parser.string(&program);
 
         let expected = vec![
-            "let x = 10;\n".to_string(),
-            "return 5;\n".to_string(),
+            "let x = 0;\n".to_string(),
+            "let y = 0;\n".to_string(),
+            "return 0;\n".to_string(),
             "foobar;\n".to_string(),
             "(!foo);\n".to_string(),
+            "(1 + 2);\n".to_string(),
+            "((1 * 2) + 3);\n".to_string(),
+            "((3 / 2) - 1);\n".to_string(),
+            "(((-1) * 2) + 3);\n".to_string(),
+            "(10 > 5);\n".to_string(),
+            "(5 < 10);\n".to_string(),
+            "(((3 * 2) + 1) > 1);\n".to_string(),
+            "(((3 * 2) + 1) != 10);\n".to_string(),
         ];
 
         assert_eq!(parser.errors.len(), 0, "Unvalid statements found");
 
         assert_eq!(
             program.statements.len(),
-            4,
+            14,
             "Unexpected number of statements"
         );
 
