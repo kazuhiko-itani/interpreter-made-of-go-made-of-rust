@@ -13,6 +13,7 @@ pub enum Expression {
     IntegerLiteral(i64),
     Function(Vec<String>, Box<Statement>),
     Return(Box<Expression>),
+    Prefix(String, Box<Expression>),
     Infix(Box<Expression>, String, Box<Expression>),
 }
 
@@ -32,6 +33,7 @@ impl fmt::Display for Expression {
                 write!(f, "fn({}) {{ {:?} }}", params_str, body)
             }
             Expression::Return(expr) => write!(f, "return {}", expr),
+            Expression::Prefix(op, expr) => write!(f, "({}{})", op, expr),
             Expression::Infix(left, op, right) => write!(f, "({} {} {})", left, op, right),
         }
     }
@@ -42,12 +44,13 @@ pub struct Program {
     pub statements: Vec<Statement>,
 }
 
+#[derive(PartialEq, PartialOrd)]
 pub enum Precedence {
-    Lowest,
-    Equals,
-    LessGreater,
-    Sum,
-    Product,
-    Prefix,
-    Call,
+    Lowest = 0,
+    Equals = 1,
+    LessGreater = 2,
+    Sum = 3,
+    Product = 4,
+    Prefix = 5,
+    Call = 6,
 }

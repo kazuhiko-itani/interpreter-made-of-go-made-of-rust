@@ -6,8 +6,8 @@ pub enum TokenType {
     IF,
     ELSE,
     RETURN,
-    Eq,
-    NotEq,
+    EQ,
+    NOTEQ,
     Identifier,
     Assign,
     IntLiteral,
@@ -17,7 +17,7 @@ pub enum TokenType {
     LBrace,
     RBrace,
     Comma,
-    Plus,
+    PLUS,
     MINUS,
     BANG,
     SLASH,
@@ -73,7 +73,7 @@ impl Lexer {
                     let literal = "==".to_string();
                     self.read_char();
                     Token {
-                        token_type: TokenType::Eq,
+                        token_type: TokenType::EQ,
                         literal,
                     }
                 } else {
@@ -108,7 +108,7 @@ impl Lexer {
                 literal: ",".to_string(),
             },
             Some('+') => Token {
-                token_type: TokenType::Plus,
+                token_type: TokenType::PLUS,
                 literal: "+".to_string(),
             },
             Some('-') => Token {
@@ -120,7 +120,7 @@ impl Lexer {
                     let literal = "!=".to_string();
                     self.read_char();
                     Token {
-                        token_type: TokenType::NotEq,
+                        token_type: TokenType::NOTEQ,
                         literal,
                     }
                 } else {
@@ -381,7 +381,7 @@ mod tests {
                 literal: "x".to_string(),
             },
             Token {
-                token_type: TokenType::Plus,
+                token_type: TokenType::PLUS,
                 literal: "+".to_string(),
             },
             Token {
@@ -561,7 +561,7 @@ mod tests {
                 literal: "10".to_string(),
             },
             Token {
-                token_type: TokenType::Eq,
+                token_type: TokenType::EQ,
                 literal: "==".to_string(),
             },
             Token {
@@ -577,7 +577,7 @@ mod tests {
                 literal: "10".to_string(),
             },
             Token {
-                token_type: TokenType::NotEq,
+                token_type: TokenType::NOTEQ,
                 literal: "!=".to_string(),
             },
             Token {

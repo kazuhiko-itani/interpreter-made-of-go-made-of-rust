@@ -29,16 +29,34 @@ impl Parser {
             infix_parse_fns: HashMap::new(),
         };
 
-        parser.register_prefix(
+        Self::setup_prefix_parse_fns(&mut parser);
+        Self::setup_infix_parse_fns(&mut parser);
+
+        parser
+    }
+
+    fn setup_prefix_parse_fns(&mut self) {
+        self.register_prefix(
             TokenType::Identifier,
             Self::parse_identifier as PrefixParseFn,
         );
-        parser.register_prefix(
+        self.register_prefix(
             TokenType::IntLiteral,
             Self::parse_integer_literal as PrefixParseFn,
         );
+        self.register_prefix(TokenType::BANG, Self::parse_prefix_expression);
+        self.register_prefix(TokenType::MINUS, Self::parse_prefix_expression);
+    }
 
-        parser
+    fn setup_infix_parse_fns(&mut self) {
+        self.register_infix(TokenType::PLUS, Self::parse_infix_expression);
+        self.register_infix(TokenType::MINUS, Self::parse_infix_expression);
+        self.register_infix(TokenType::EQ, Self::parse_infix_expression);
+        self.register_infix(TokenType::NOTEQ, Self::parse_infix_expression);
+        self.register_infix(TokenType::SLASH, Self::parse_infix_expression);
+        self.register_infix(TokenType::ASTERISK, Self::parse_infix_expression);
+        self.register_infix(TokenType::GT, Self::parse_infix_expression);
+        self.register_infix(TokenType::LT, Self::parse_infix_expression);
     }
 
     fn register_prefix(&mut self, token_type: TokenType, func: PrefixParseFn) {
@@ -92,6 +110,34 @@ impl Parser {
         self.peek_token.token_type == token
     }
 
+    fn current_precedence(&self) -> Precedence {
+        match self.current_token.token_type {
+            TokenType::EQ => Precedence::Equals,
+            TokenType::NOTEQ => Precedence::Equals,
+            TokenType::LT => Precedence::LessGreater,
+            TokenType::GT => Precedence::LessGreater,
+            TokenType::PLUS => Precedence::Sum,
+            TokenType::MINUS => Precedence::Sum,
+            TokenType::SLASH => Precedence::Product,
+            TokenType::ASTERISK => Precedence::Product,
+            _ => Precedence::Lowest,
+        }
+    }
+
+    fn peek_precedence(&self) -> Precedence {
+        match self.peek_token.token_type {
+            TokenType::EQ => Precedence::Equals,
+            TokenType::NOTEQ => Precedence::Equals,
+            TokenType::LT => Precedence::LessGreater,
+            TokenType::GT => Precedence::LessGreater,
+            TokenType::PLUS => Precedence::Sum,
+            TokenType::MINUS => Precedence::Sum,
+            TokenType::SLASH => Precedence::Product,
+            TokenType::ASTERISK => Precedence::Product,
+            _ => Precedence::Lowest,
+        }
+    }
+
     fn expect_peek(&mut self, token: TokenType) -> bool {
         if self.peek_token_is(token.clone()) {
             self.next_token();
@@ -132,6 +178,8 @@ impl Parser {
                     self.next_token();
                 }
 
+                self.next_token();
+
                 return Some(Statement::Let(ident.clone(), Expression::IntegerLiteral(0)));
             }
         }
@@ -162,10 +210,34 @@ impl Parser {
     }
 
     fn parse_expression(&mut self, precedence: Precedence) -> Option<Expression> {
-        let prefix = self.prefix_parse_fns.get(&self.current_token.token_type)?;
-        let left_exp = prefix(self)?;
+        let prefix = self.prefix_parse_fns.get(&self.current_token.token_type);
+        if prefix.is_none() {
+            self.errors.push(format!(
+                "no prefix parse function for {:?} found",
+                self.current_token.token_type
+            ));
+            return None;
+        }
 
-        Some(left_exp)
+        let mut left = prefix.unwrap()(self)?;
+
+        while !self.peek_token_is(TokenType::Semicolon) && precedence < self.peek_precedence() {
+            let infix_opt = {
+                let infix = self.infix_parse_fns.get(&self.peek_token.token_type);
+                infix.map(|f| *f)
+            };
+
+            if infix_opt.is_none() {
+                return Some(left);
+            }
+
+            self.next_token();
+
+            let infix = infix_opt.unwrap();
+            left = infix(self, left)?;
+        }
+
+        Some(left)
     }
 
     fn parse_identifier(&mut self) -> Option<Expression> {
@@ -187,6 +259,26 @@ impl Parser {
             None
         }
     }
+
+    fn parse_prefix_expression(&mut self) -> Option<Expression> {
+        let operator = self.current_token.literal.clone();
+
+        self.next_token();
+        let right = self.parse_expression(Precedence::Prefix)?;
+
+        Some(Expression::Prefix(operator, Box::new(right)))
+    }
+
+    fn parse_infix_expression(&mut self, left: Expression) -> Option<Expression> {
+        let operator = self.current_token.literal.clone();
+        let precedence = self.current_precedence();
+
+        self.next_token();
+
+        let right = self.parse_expression(precedence)?;
+
+        Some(Expression::Infix(Box::new(left), operator, Box::new(right)))
+    }
 }
 
 #[cfg(test)]
@@ -201,6 +293,10 @@ mod tests {
                 Statement::Let("x".to_string(), Expression::IntegerLiteral(10)),
                 Statement::Return(Expression::IntegerLiteral(5)),
                 Statement::Expression(Expression::Identifier("foobar".to_string())),
+                Statement::Expression(Expression::Prefix(
+                    "!".to_string(),
+                    Box::new(Expression::Identifier("foo".to_string())),
+                )),
             ],
         };
 
@@ -213,13 +309,14 @@ mod tests {
             "let x = 10;\n".to_string(),
             "return 5;\n".to_string(),
             "foobar;\n".to_string(),
+            "(!foo);\n".to_string(),
         ];
 
         assert_eq!(parser.errors.len(), 0, "Unvalid statements found");
 
         assert_eq!(
             program.statements.len(),
-            3,
+            4,
             "Unexpected number of statements"
         );
 
@@ -307,6 +404,16 @@ mod tests {
             bar
             5;
             10;
+            !foo;
+            -10;
+            10 == 10;
+            10 != 5;
+            10 + 10;
+            10 - 10;
+            10 * 10;
+            10 / 10
+            10 > 5;
+            10 < 15;
         ";
 
         let lexer = Lexer::new(input);
@@ -323,7 +430,7 @@ mod tests {
 
         assert_eq!(
             program.statements.len(),
-            4,
+            14,
             "Unexpected number of statements"
         );
 
@@ -332,6 +439,46 @@ mod tests {
             Expression::Identifier("bar".to_string()),
             Expression::IntegerLiteral(5),
             Expression::IntegerLiteral(10),
+            Expression::Prefix(
+                "!".to_string(),
+                Box::new(Expression::Identifier("foo".to_string())),
+            ),
+            Expression::Prefix("-".to_string(), Box::new(Expression::IntegerLiteral(10))),
+            Expression::Infix(
+                Box::new(Expression::IntegerLiteral(10)),
+                "==".to_string(),
+                Box::new(Expression::IntegerLiteral(10)),
+            ),
+            Expression::Infix(
+                Box::new(Expression::IntegerLiteral(10)),
+                "!=".to_string(),
+                Box::new(Expression::IntegerLiteral(5)),
+            ),
+            Expression::Infix(
+                Box::new(Expression::IntegerLiteral(10)),
+                "+".to_string(),
+                Box::new(Expression::IntegerLiteral(10)),
+            ),
+            Expression::Infix(
+                Box::new(Expression::IntegerLiteral(10)),
+                "-".to_string(),
+                Box::new(Expression::IntegerLiteral(10)),
+            ),
+            Expression::Infix(
+                Box::new(Expression::IntegerLiteral(10)),
+                "*".to_string(),
+                Box::new(Expression::IntegerLiteral(10)),
+            ),
+            Expression::Infix(
+                Box::new(Expression::IntegerLiteral(10)),
+                "/".to_string(),
+                Box::new(Expression::IntegerLiteral(10)),
+            ),
+            Expression::Infix(
+                Box::new(Expression::IntegerLiteral(10)),
+                ">".to_string(),
+                Box::new(Expression::IntegerLiteral(5)),
+            ),
         ];
 
         for (i, v) in expected_values.iter().enumerate() {
