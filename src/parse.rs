@@ -42,6 +42,7 @@ impl Parser {
         self.register_prefix(TokenType::MINUS, Self::parse_prefix_expression);
         self.register_prefix(TokenType::TRUE, Self::parse_boolean);
         self.register_prefix(TokenType::FALSE, Self::parse_boolean);
+        self.register_prefix(TokenType::LPAREN, Self::parse_grouped_expression);
     }
 
     fn setup_infix_parse_fns(&mut self) {
@@ -266,6 +267,18 @@ impl Parser {
         }
     }
 
+    fn parse_grouped_expression(&mut self) -> Option<Expression> {
+        self.next_token();
+
+        let expression = self.parse_expression(Precedence::Lowest);
+
+        if !self.expect_peek(TokenType::RPAREN) {
+            return None;
+        }
+
+        expression
+    }
+
     fn parse_prefix_expression(&mut self) -> Option<Expression> {
         let operator = self.current_token.literal.clone();
 
@@ -309,6 +322,11 @@ mod tests {
             3 * 2 + 1 > 1;
             3 * 2 + 1 == 7;
             3 * 2 + 1 != 10;
+            1 + (2 + 3);
+            (1 * (2 + 3))
+            2 / (5 + 5);
+            -(5 + 5);
+            !(true == true)
         ";
 
         let lexer = Lexer::new(input);
@@ -330,14 +348,20 @@ mod tests {
             "(10 > 5);\n".to_string(),
             "(5 < 10);\n".to_string(),
             "(((3 * 2) + 1) > 1);\n".to_string(),
+            "(((3 * 2) + 1) == 7);\n".to_string(),
             "(((3 * 2) + 1) != 10);\n".to_string(),
+            "(1 + (2 + 3));\n".to_string(),
+            "(1 * (2 + 3));\n".to_string(),
+            "(2 / (5 + 5));\n".to_string(),
+            "(-(5 + 5));\n".to_string(),
+            "(!(true == true));\n".to_string(),
         ];
 
         assert_eq!(parser.errors.len(), 0, "Unvalid statements found");
 
         assert_eq!(
             program.statements.len(),
-            14,
+            19,
             "Unexpected number of statements"
         );
 
