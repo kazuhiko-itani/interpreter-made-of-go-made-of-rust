@@ -9,18 +9,19 @@ pub enum Statement {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Expression {
-    IDENT(String),
+    Ident(String),
     IntegerLiteral(i64),
     Function(Vec<String>, Box<Statement>),
     Return(Box<Expression>),
     Prefix(String, Box<Expression>),
     Infix(Box<Expression>, String, Box<Expression>),
+    Boolean(String),
 }
 
 impl fmt::Display for Expression {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Expression::IDENT(ident) => write!(f, "{}", ident),
+            Expression::Ident(ident) => write!(f, "{}", ident),
             Expression::IntegerLiteral(int) => write!(f, "{}", int),
             Expression::Function(params, body) => {
                 let mut params_str = String::new();
@@ -35,6 +36,7 @@ impl fmt::Display for Expression {
             Expression::Return(expr) => write!(f, "return {}", expr),
             Expression::Prefix(op, expr) => write!(f, "({}{})", op, expr),
             Expression::Infix(left, op, right) => write!(f, "({} {} {})", left, op, right),
+            Expression::Boolean(boolean) => write!(f, "{}", boolean),
         }
     }
 }

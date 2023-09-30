@@ -36,10 +36,12 @@ impl Parser {
     }
 
     fn setup_prefix_parse_fns(&mut self) {
-        self.register_prefix(TokenType::IDENT, Self::parse_ident as PrefixParseFn);
-        self.register_prefix(TokenType::INT, Self::parse_integer_literal as PrefixParseFn);
+        self.register_prefix(TokenType::IDENT, Self::parse_ident);
+        self.register_prefix(TokenType::INT, Self::parse_integer_literal);
         self.register_prefix(TokenType::BANG, Self::parse_prefix_expression);
         self.register_prefix(TokenType::MINUS, Self::parse_prefix_expression);
+        self.register_prefix(TokenType::TRUE, Self::parse_boolean);
+        self.register_prefix(TokenType::FALSE, Self::parse_boolean);
     }
 
     fn setup_infix_parse_fns(&mut self) {
@@ -236,7 +238,7 @@ impl Parser {
 
     fn parse_ident(&mut self) -> Option<Expression> {
         if let TokenType::IDENT = self.current_token.token_type {
-            Some(Expression::IDENT(self.current_token.literal.clone()))
+            Some(Expression::Ident(self.current_token.literal.clone()))
         } else {
             None
         }
@@ -249,6 +251,16 @@ impl Parser {
             } else {
                 None
             }
+        } else {
+            None
+        }
+    }
+
+    fn parse_boolean(&mut self) -> Option<Expression> {
+        if let TokenType::TRUE = self.current_token.token_type {
+            Some(Expression::Boolean("true".to_string()))
+        } else if let TokenType::FALSE = self.current_token.token_type {
+            Some(Expression::Boolean("false".to_string()))
         } else {
             None
         }
@@ -286,10 +298,10 @@ mod tests {
             statements: vec![
                 Statement::Let("x".to_string(), Expression::IntegerLiteral(10)),
                 Statement::Return(Expression::IntegerLiteral(5)),
-                Statement::Expression(Expression::IDENT("foobar".to_string())),
+                Statement::Expression(Expression::Ident("foobar".to_string())),
                 Statement::Expression(Expression::Prefix(
                     "!".to_string(),
-                    Box::new(Expression::IDENT("foo".to_string())),
+                    Box::new(Expression::Ident("foo".to_string())),
                 )),
             ],
         };
@@ -408,6 +420,8 @@ mod tests {
             10 / 10
             10 > 5;
             10 < 15;
+            true;
+            false;
         ";
 
         let lexer = Lexer::new(input);
@@ -424,18 +438,18 @@ mod tests {
 
         assert_eq!(
             program.statements.len(),
-            14,
+            16,
             "Unexpected number of statements"
         );
 
         let expected_values = vec![
-            Expression::IDENT("foo".to_string()),
-            Expression::IDENT("bar".to_string()),
+            Expression::Ident("foo".to_string()),
+            Expression::Ident("bar".to_string()),
             Expression::IntegerLiteral(5),
             Expression::IntegerLiteral(10),
             Expression::Prefix(
                 "!".to_string(),
-                Box::new(Expression::IDENT("foo".to_string())),
+                Box::new(Expression::Ident("foo".to_string())),
             ),
             Expression::Prefix("-".to_string(), Box::new(Expression::IntegerLiteral(10))),
             Expression::Infix(
@@ -473,6 +487,13 @@ mod tests {
                 ">".to_string(),
                 Box::new(Expression::IntegerLiteral(5)),
             ),
+            Expression::Infix(
+                Box::new(Expression::IntegerLiteral(10)),
+                "<".to_string(),
+                Box::new(Expression::IntegerLiteral(15)),
+            ),
+            Expression::Boolean("true".to_string()),
+            Expression::Boolean("false".to_string()),
         ];
 
         for (i, v) in expected_values.iter().enumerate() {
