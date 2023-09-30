@@ -9,7 +9,7 @@ pub enum Statement {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Expression {
-    Identifier(String),
+    IDENT(String),
     IntegerLiteral(i64),
     Function(Vec<String>, Box<Statement>),
     Return(Box<Expression>),
@@ -20,7 +20,7 @@ pub enum Expression {
 impl fmt::Display for Expression {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Expression::Identifier(ident) => write!(f, "{}", ident),
+            Expression::IDENT(ident) => write!(f, "{}", ident),
             Expression::IntegerLiteral(int) => write!(f, "{}", int),
             Expression::Function(params, body) => {
                 let mut params_str = String::new();

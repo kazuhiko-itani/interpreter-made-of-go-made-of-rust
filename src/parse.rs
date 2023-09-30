@@ -36,14 +36,8 @@ impl Parser {
     }
 
     fn setup_prefix_parse_fns(&mut self) {
-        self.register_prefix(
-            TokenType::Identifier,
-            Self::parse_identifier as PrefixParseFn,
-        );
-        self.register_prefix(
-            TokenType::IntLiteral,
-            Self::parse_integer_literal as PrefixParseFn,
-        );
+        self.register_prefix(TokenType::IDENT, Self::parse_ident as PrefixParseFn);
+        self.register_prefix(TokenType::INT, Self::parse_integer_literal as PrefixParseFn);
         self.register_prefix(TokenType::BANG, Self::parse_prefix_expression);
         self.register_prefix(TokenType::MINUS, Self::parse_prefix_expression);
     }
@@ -154,7 +148,7 @@ impl Parser {
 
     fn parse_statement(&mut self) -> Option<Statement> {
         match self.current_token.token_type {
-            TokenType::Let => self.parse_let_statement(),
+            TokenType::LET => self.parse_let_statement(),
             TokenType::RETURN => self.parse_return_statement(),
             _ => self.parse_expression_statement(),
         }
@@ -163,18 +157,18 @@ impl Parser {
     fn parse_let_statement(&mut self) -> Option<Statement> {
         let peek_token_type = self.peek_token.token_type.clone();
 
-        if let TokenType::Identifier = peek_token_type {
+        if let TokenType::IDENT = peek_token_type {
             self.next_token();
 
             let ident = self.current_token.literal.clone();
 
-            self.expect_peek(TokenType::Assign);
+            self.expect_peek(TokenType::ASSIGN);
 
-            if self.current_token_is(TokenType::Assign) {
+            if self.current_token_is(TokenType::ASSIGN) {
                 self.next_token();
 
                 // todo
-                while !self.peek_token_is(TokenType::Semicolon) {
+                while !self.peek_token_is(TokenType::SEMICOLON) {
                     self.next_token();
                 }
 
@@ -190,7 +184,7 @@ impl Parser {
     fn parse_return_statement(&mut self) -> Option<Statement> {
         self.next_token();
 
-        if self.peek_token_is(TokenType::Semicolon) {
+        if self.peek_token_is(TokenType::SEMICOLON) {
             self.next_token();
         }
 
@@ -199,7 +193,7 @@ impl Parser {
 
     fn parse_expression_statement(&mut self) -> Option<Statement> {
         if let Some(expression) = self.parse_expression(Precedence::Lowest) {
-            if self.peek_token_is(TokenType::Semicolon) {
+            if self.peek_token_is(TokenType::SEMICOLON) {
                 self.next_token();
             }
 
@@ -221,7 +215,7 @@ impl Parser {
 
         let mut left = prefix.unwrap()(self)?;
 
-        while !self.peek_token_is(TokenType::Semicolon) && precedence < self.peek_precedence() {
+        while !self.peek_token_is(TokenType::SEMICOLON) && precedence < self.peek_precedence() {
             let infix_opt = {
                 let infix = self.infix_parse_fns.get(&self.peek_token.token_type);
                 infix.map(|f| *f)
@@ -240,16 +234,16 @@ impl Parser {
         Some(left)
     }
 
-    fn parse_identifier(&mut self) -> Option<Expression> {
-        if let TokenType::Identifier = self.current_token.token_type {
-            Some(Expression::Identifier(self.current_token.literal.clone()))
+    fn parse_ident(&mut self) -> Option<Expression> {
+        if let TokenType::IDENT = self.current_token.token_type {
+            Some(Expression::IDENT(self.current_token.literal.clone()))
         } else {
             None
         }
     }
 
     fn parse_integer_literal(&mut self) -> Option<Expression> {
-        if let TokenType::IntLiteral = self.current_token.token_type {
+        if let TokenType::INT = self.current_token.token_type {
             if let Ok(int) = self.current_token.literal.parse::<i64>() {
                 Some(Expression::IntegerLiteral(int))
             } else {
@@ -292,10 +286,10 @@ mod tests {
             statements: vec![
                 Statement::Let("x".to_string(), Expression::IntegerLiteral(10)),
                 Statement::Return(Expression::IntegerLiteral(5)),
-                Statement::Expression(Expression::Identifier("foobar".to_string())),
+                Statement::Expression(Expression::IDENT("foobar".to_string())),
                 Statement::Expression(Expression::Prefix(
                     "!".to_string(),
-                    Box::new(Expression::Identifier("foo".to_string())),
+                    Box::new(Expression::IDENT("foo".to_string())),
                 )),
             ],
         };
@@ -348,12 +342,12 @@ mod tests {
             "Unexpected number of statements"
         );
 
-        let expected_identifiers = vec!["x", "y"];
+        let expected_idents = vec!["x", "y"];
 
-        for (i, ident) in expected_identifiers.iter().enumerate() {
+        for (i, ident) in expected_idents.iter().enumerate() {
             match &program.statements[i] {
                 Statement::Let(identifer, _) => {
-                    assert_eq!(identifer, ident, "Unexpected identifier name");
+                    assert_eq!(identifer, ident, "Unexpected IDENT name");
                 }
                 _ => panic!("Unexpected statement type"),
             }
@@ -390,7 +384,7 @@ mod tests {
         for (i, v) in expected_values.iter().enumerate() {
             match &program.statements[i] {
                 Statement::Return(value) => {
-                    assert_eq!(value, v, "Unexpected identifier name");
+                    assert_eq!(value, v, "Unexpected IDENT name");
                 }
                 _ => panic!("Unexpected statement type"),
             }
@@ -435,13 +429,13 @@ mod tests {
         );
 
         let expected_values = vec![
-            Expression::Identifier("foo".to_string()),
-            Expression::Identifier("bar".to_string()),
+            Expression::IDENT("foo".to_string()),
+            Expression::IDENT("bar".to_string()),
             Expression::IntegerLiteral(5),
             Expression::IntegerLiteral(10),
             Expression::Prefix(
                 "!".to_string(),
-                Box::new(Expression::Identifier("foo".to_string())),
+                Box::new(Expression::IDENT("foo".to_string())),
             ),
             Expression::Prefix("-".to_string(), Box::new(Expression::IntegerLiteral(10))),
             Expression::Infix(
@@ -484,7 +478,7 @@ mod tests {
         for (i, v) in expected_values.iter().enumerate() {
             match &program.statements[i] {
                 Statement::Expression(value) => {
-                    assert_eq!(value, v, "Unexpected identifier name");
+                    assert_eq!(value, v, "Unexpected IDENT name");
                 }
                 _ => panic!("Unexpected statement type"),
             }
