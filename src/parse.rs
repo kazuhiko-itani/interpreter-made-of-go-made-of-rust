@@ -43,6 +43,7 @@ impl Parser {
         self.register_prefix(TokenType::TRUE, Self::parse_boolean);
         self.register_prefix(TokenType::FALSE, Self::parse_boolean);
         self.register_prefix(TokenType::LPAREN, Self::parse_grouped_expression);
+        self.register_prefix(TokenType::IF, Self::parse_if_expression);
     }
 
     fn setup_infix_parse_fns(&mut self) {
@@ -155,6 +156,22 @@ impl Parser {
             TokenType::RETURN => self.parse_return_statement(),
             _ => self.parse_expression_statement(),
         }
+    }
+
+    fn parse_block_statement(&mut self) -> Vec<Statement> {
+        let mut statements = vec![];
+
+        self.next_token();
+
+        while !self.current_token_is(TokenType::RBRACE) && !self.current_token_is(TokenType::EOF) {
+            if let Some(statement) = self.parse_statement() {
+                statements.push(statement);
+            }
+
+            self.next_token();
+        }
+
+        statements
     }
 
     fn parse_let_statement(&mut self) -> Option<Statement> {
@@ -279,6 +296,44 @@ impl Parser {
         expression
     }
 
+    fn parse_if_expression(&mut self) -> Option<Expression> {
+        if !self.expect_peek(TokenType::LPAREN) {
+            return None;
+        }
+
+        self.next_token();
+
+        let condition = self.parse_expression(Precedence::Lowest);
+
+        if !self.expect_peek(TokenType::RPAREN) {
+            return None;
+        }
+
+        if !self.expect_peek(TokenType::LBRACE) {
+            return None;
+        }
+
+        let consequence = self.parse_block_statement();
+
+        let alternative = if self.peek_token_is(TokenType::ELSE) {
+            self.next_token();
+
+            if !self.expect_peek(TokenType::LBRACE) {
+                return None;
+            }
+
+            Some(self.parse_block_statement())
+        } else {
+            None
+        };
+
+        Some(Expression::If(
+            Box::new(condition.unwrap()),
+            consequence,
+            alternative,
+        ))
+    }
+
     fn parse_prefix_expression(&mut self) -> Option<Expression> {
         let operator = self.current_token.literal.clone();
 
@@ -323,10 +378,12 @@ mod tests {
             3 * 2 + 1 == 7;
             3 * 2 + 1 != 10;
             1 + (2 + 3);
-            (1 * (2 + 3))
+            (1 * (2 + 3));
             2 / (5 + 5);
             -(5 + 5);
-            !(true == true)
+            !(true == true);
+            if (1 > 2) { 10 };
+            if (1 > 2) { 10 } else { 5 };
         ";
 
         let lexer = Lexer::new(input);
@@ -355,13 +412,15 @@ mod tests {
             "(2 / (5 + 5));\n".to_string(),
             "(-(5 + 5));\n".to_string(),
             "(!(true == true));\n".to_string(),
+            "if ((1 > 2)) { 10 };\n".to_string(),
+            "if ((1 > 2)) { 10 } else { 5 };\n".to_string(),
         ];
 
         assert_eq!(parser.errors.len(), 0, "Unvalid statements found");
 
         assert_eq!(
             program.statements.len(),
-            19,
+            21,
             "Unexpected number of statements"
         );
 
@@ -435,6 +494,62 @@ mod tests {
         for (i, v) in expected_values.iter().enumerate() {
             match &program.statements[i] {
                 Statement::Return(value) => {
+                    assert_eq!(value, v, "Unexpected IDENT name");
+                }
+                _ => panic!("Unexpected statement type"),
+            }
+        }
+    }
+
+    #[test]
+    fn test_if_expression_parsing() {
+        let input = "
+            if (1 > 2) { 10 };
+            if (1 > 2) { 10 } else { 5 };
+        ";
+
+        let lexer = Lexer::new(input);
+        let mut parser = Parser::new(lexer);
+
+        let program = parser.parse_program();
+
+        assert_eq!(
+            parser.errors.len(),
+            0,
+            "Unvalid statements found. {:?}",
+            parser.errors
+        );
+
+        assert_eq!(
+            program.statements.len(),
+            2,
+            "Unexpected number of statements"
+        );
+
+        let expected_values = vec![
+            Expression::If(
+                Box::new(Expression::Infix(
+                    Box::new(Expression::IntegerLiteral(1)),
+                    ">".to_string(),
+                    Box::new(Expression::IntegerLiteral(2)),
+                )),
+                vec![Statement::Expression(Expression::IntegerLiteral(10))],
+                None,
+            ),
+            Expression::If(
+                Box::new(Expression::Infix(
+                    Box::new(Expression::IntegerLiteral(1)),
+                    ">".to_string(),
+                    Box::new(Expression::IntegerLiteral(2)),
+                )),
+                vec![Statement::Expression(Expression::IntegerLiteral(10))],
+                Some(vec![Statement::Expression(Expression::IntegerLiteral(5))]),
+            ),
+        ];
+
+        for (i, v) in expected_values.iter().enumerate() {
+            match &program.statements[i] {
+                Statement::Expression(value) => {
                     assert_eq!(value, v, "Unexpected IDENT name");
                 }
                 _ => panic!("Unexpected statement type"),
