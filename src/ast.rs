@@ -12,12 +12,13 @@ pub enum Statement {
 pub enum Expression {
     Ident(String),
     IntegerLiteral(i64),
-    Function(Vec<String>, Box<Statement>),
+    Function(Vec<String>, Vec<Statement>),
     Return(Box<Expression>),
     Prefix(String, Box<Expression>),
     Infix(Box<Expression>, String, Box<Expression>),
     Boolean(String),
     If(Box<Expression>, Vec<Statement>, Option<Vec<Statement>>),
+    Call(Box<Expression>, Vec<Expression>),
 }
 
 impl fmt::Display for Statement {
@@ -38,12 +39,21 @@ impl fmt::Display for Expression {
             Expression::Function(params, body) => {
                 let mut params_str = String::new();
 
-                for param in params {
+                for (i, param) in params.iter().enumerate() {
                     params_str.push_str(&param);
-                    params_str.push_str(", ");
+                    if i != params.len() - 1 {
+                        params_str.push_str(", ");
+                    }
                 }
 
-                write!(f, "fn({}) {{ {:?} }}", params_str, body)
+                let mut body_str = String::new();
+
+                for statement in body {
+                    body_str.push_str(&statement.to_string());
+                    body_str.push_str(";\n");
+                }
+
+                write!(f, "fn({}) {{ {} }}", params_str, body_str)
             }
             Expression::Return(expr) => write!(f, "return {}", expr),
             Expression::Prefix(op, expr) => write!(f, "({}{})", op, expr),
@@ -71,6 +81,18 @@ impl fmt::Display for Expression {
                 } else {
                     write!(f, "if ({}) {{ {} }}", condition, consequence_str)
                 }
+            }
+            Expression::Call(function, arguments) => {
+                let mut args_str = String::new();
+
+                for (i, arg) in arguments.iter().enumerate() {
+                    args_str.push_str(&arg.to_string());
+                    if i != arguments.len() - 1 {
+                        args_str.push_str(", ");
+                    }
+                }
+
+                write!(f, "{}({})", function, args_str)
             }
         }
     }

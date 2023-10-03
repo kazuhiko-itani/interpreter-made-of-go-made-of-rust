@@ -44,6 +44,7 @@ impl Parser {
         self.register_prefix(TokenType::FALSE, Self::parse_boolean);
         self.register_prefix(TokenType::LPAREN, Self::parse_grouped_expression);
         self.register_prefix(TokenType::IF, Self::parse_if_expression);
+        self.register_prefix(TokenType::FUNCTION, Self::parse_function_expression);
     }
 
     fn setup_infix_parse_fns(&mut self) {
@@ -55,6 +56,7 @@ impl Parser {
         self.register_infix(TokenType::ASTERISK, Self::parse_infix_expression);
         self.register_infix(TokenType::GT, Self::parse_infix_expression);
         self.register_infix(TokenType::LT, Self::parse_infix_expression);
+        self.register_infix(TokenType::LPAREN, Self::parse_call_expression);
     }
 
     fn register_prefix(&mut self, token_type: TokenType, func: PrefixParseFn) {
@@ -118,6 +120,7 @@ impl Parser {
             TokenType::MINUS => Precedence::Sum,
             TokenType::SLASH => Precedence::Product,
             TokenType::ASTERISK => Precedence::Product,
+            TokenType::LPAREN => Precedence::Call,
             _ => Precedence::Lowest,
         }
     }
@@ -132,6 +135,7 @@ impl Parser {
             TokenType::MINUS => Precedence::Sum,
             TokenType::SLASH => Precedence::Product,
             TokenType::ASTERISK => Precedence::Product,
+            TokenType::LPAREN => Precedence::Call,
             _ => Precedence::Lowest,
         }
     }
@@ -334,6 +338,86 @@ impl Parser {
         ))
     }
 
+    fn parse_function_expression(&mut self) -> Option<Expression> {
+        if !self.expect_peek(TokenType::LPAREN) {
+            return None;
+        }
+
+        let parameters = self.parse_function_parameters();
+
+        if !self.expect_peek(TokenType::LBRACE) {
+            return None;
+        }
+
+        let body = self.parse_block_statement();
+
+        Some(Expression::Function(parameters, body))
+    }
+
+    fn parse_function_parameters(&mut self) -> Vec<String> {
+        let mut identifiers = vec![];
+
+        if self.peek_token_is(TokenType::RPAREN) {
+            self.next_token();
+            return identifiers;
+        }
+
+        self.next_token();
+
+        identifiers.push(self.current_token.literal.clone());
+
+        while self.peek_token_is(TokenType::COMMA) {
+            self.next_token();
+            self.next_token();
+            identifiers.push(self.current_token.literal.clone());
+        }
+
+        if !self.expect_peek(TokenType::RPAREN) {
+            return vec![];
+        }
+
+        return identifiers;
+    }
+
+    fn parse_call_expression(&mut self, function: Expression) -> Option<Expression> {
+        let arguments = self.parse_call_arguments();
+        if let Some(args) = arguments {
+            return Some(Expression::Call(Box::new(function), args));
+        } else {
+            None
+        }
+    }
+
+    fn parse_call_arguments(&mut self) -> Option<Vec<Expression>> {
+        let mut arguments = vec![];
+
+        if self.peek_token_is(TokenType::RPAREN) {
+            self.next_token();
+            return Some(arguments);
+        }
+
+        self.next_token();
+
+        if let Some(argument) = self.parse_expression(Precedence::Lowest) {
+            arguments.push(argument);
+        }
+
+        while self.peek_token_is(TokenType::COMMA) {
+            self.next_token();
+            self.next_token();
+
+            if let Some(argument) = self.parse_expression(Precedence::Lowest) {
+                arguments.push(argument);
+            }
+        }
+
+        if !self.expect_peek(TokenType::RPAREN) {
+            return None;
+        }
+
+        Some(arguments)
+    }
+
     fn parse_prefix_expression(&mut self) -> Option<Expression> {
         let operator = self.current_token.literal.clone();
 
@@ -384,6 +468,8 @@ mod tests {
             !(true == true);
             if (1 > 2) { 10 };
             if (1 > 2) { 10 } else { 5 };
+            fn() { x + 1; 10; };
+            fn(x, y, z) { x + 1; 10; };
         ";
 
         let lexer = Lexer::new(input);
@@ -414,13 +500,15 @@ mod tests {
             "(!(true == true));\n".to_string(),
             "if ((1 > 2)) { 10 };\n".to_string(),
             "if ((1 > 2)) { 10 } else { 5 };\n".to_string(),
+            "fn() { (x + 1);\n10;\n };\n".to_string(),
+            "fn(x, y, z) { (x + 1);\n10;\n };\n".to_string(),
         ];
 
         assert_eq!(parser.errors.len(), 0, "Unvalid statements found");
 
         assert_eq!(
             program.statements.len(),
-            21,
+            23,
             "Unexpected number of statements"
         );
 
@@ -551,6 +639,49 @@ mod tests {
             match &program.statements[i] {
                 Statement::Expression(value) => {
                     assert_eq!(value, v, "Unexpected IDENT name");
+                }
+                _ => panic!("Unexpected statement type"),
+            }
+        }
+    }
+
+    #[test]
+    fn test_call_expression_parsing() {
+        let input = "
+            add(1, 2, 3);
+        ";
+
+        let lexer = Lexer::new(input);
+        let mut parser = Parser::new(lexer);
+
+        let program = parser.parse_program();
+
+        assert_eq!(
+            parser.errors.len(),
+            0,
+            "Unvalid statements found. {:?}",
+            parser.errors
+        );
+
+        assert_eq!(
+            program.statements.len(),
+            1,
+            "Unexpected number of statements"
+        );
+
+        let expected_values = vec![Expression::Call(
+            Box::new(Expression::Ident("add".to_string())),
+            vec![
+                Expression::IntegerLiteral(1),
+                Expression::IntegerLiteral(2),
+                Expression::IntegerLiteral(3),
+            ],
+        )];
+
+        for (i, v) in expected_values.iter().enumerate() {
+            match &program.statements[i] {
+                Statement::Expression(value) => {
+                    assert_eq!(value, v, "Unexpected function call");
                 }
                 _ => panic!("Unexpected statement type"),
             }
