@@ -81,20 +81,28 @@ impl Parser {
         program
     }
 
-    fn string(&self, program: &Program) -> Vec<String> {
+    pub fn string(&self, program: &Program) -> Vec<String> {
         let mut program_string = vec![];
 
         for statement in &program.statements {
             match statement {
                 Statement::Let(ident, expr) => {
-                    program_string.push(format!("let {} = {};\n", ident, expr.to_string()))
+                    program_string.push(format!("let {} = {};", ident, expr.to_string()))
                 }
-                Statement::Return(expr) => program_string.push(format!("return {};\n", expr)),
-                Statement::Expression(expr) => program_string.push(format!("{};\n", expr)),
+                Statement::Return(expr) => program_string.push(format!("return {};", expr)),
+                Statement::Expression(expr) => program_string.push(format!("{};", expr)),
             }
         }
 
         program_string
+    }
+
+    pub fn has_errors(&self) -> bool {
+        self.errors.len() > 0
+    }
+
+    pub fn errors(&self) -> Vec<String> {
+        self.errors.clone()
     }
 
     fn next_token(&mut self) {
@@ -484,25 +492,25 @@ mod tests {
         let program_string = parser.string(&program);
 
         let expected = vec![
-            "let x = 5;\n".to_string(),
-            "let y = 10;\n".to_string(),
-            "return 5;\n".to_string(),
-            "foobar;\n".to_string(),
-            "(!foo);\n".to_string(),
-            "(1 + 2);\n".to_string(),
-            "((1 * 2) + 3);\n".to_string(),
-            "((3 / 2) - 1);\n".to_string(),
-            "(((-1) * 2) + 3);\n".to_string(),
-            "(10 > 5);\n".to_string(),
-            "(5 < 10);\n".to_string(),
-            "(((3 * 2) + 1) > 1);\n".to_string(),
-            "(((3 * 2) + 1) == 7);\n".to_string(),
-            "(((3 * 2) + 1) != 10);\n".to_string(),
-            "(1 + (2 + 3));\n".to_string(),
-            "(1 * (2 + 3));\n".to_string(),
-            "(2 / (5 + 5));\n".to_string(),
-            "(-(5 + 5));\n".to_string(),
-            "(!(true == true));\n".to_string(),
+            "let x = 5;".to_string(),
+            "let y = 10;".to_string(),
+            "return 5;".to_string(),
+            "foobar;".to_string(),
+            "(!foo);".to_string(),
+            "(1 + 2);".to_string(),
+            "((1 * 2) + 3);".to_string(),
+            "((3 / 2) - 1);".to_string(),
+            "(((-1) * 2) + 3);".to_string(),
+            "(10 > 5);".to_string(),
+            "(5 < 10);".to_string(),
+            "(((3 * 2) + 1) > 1);".to_string(),
+            "(((3 * 2) + 1) == 7);".to_string(),
+            "(((3 * 2) + 1) != 10);".to_string(),
+            "(1 + (2 + 3));".to_string(),
+            "(1 * (2 + 3));".to_string(),
+            "(2 / (5 + 5));".to_string(),
+            "(-(5 + 5));".to_string(),
+            "(!(true == true));".to_string(),
         ];
 
         assert_eq!(parser.errors.len(), 0, "Unvalid statements found");

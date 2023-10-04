@@ -41,7 +41,14 @@ impl Repl {
         let mut parser = parse::Parser::new(lexer);
 
         let program = parser.parse_program();
-        println!("{:?}", program);
+
+        if parser.has_errors() {
+            for err in parser.errors() {
+                println!("{}", err);
+            }
+        } else {
+            println!("{:?}", parser.string(&program));
+        }
     }
 }
 
