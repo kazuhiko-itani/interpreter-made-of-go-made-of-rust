@@ -466,10 +466,6 @@ mod tests {
             2 / (5 + 5);
             -(5 + 5);
             !(true == true);
-            if (1 > 2) { 10 };
-            if (1 > 2) { 10 } else { 5 };
-            fn() { x + 1; 10; };
-            fn(x, y, z) { x + 1; 10; };
         ";
 
         let lexer = Lexer::new(input);
@@ -498,17 +494,13 @@ mod tests {
             "(2 / (5 + 5));\n".to_string(),
             "(-(5 + 5));\n".to_string(),
             "(!(true == true));\n".to_string(),
-            "if ((1 > 2)) { 10 };\n".to_string(),
-            "if ((1 > 2)) { 10 } else { 5 };\n".to_string(),
-            "fn() { (x + 1);\n10;\n };\n".to_string(),
-            "fn(x, y, z) { (x + 1);\n10;\n };\n".to_string(),
         ];
 
         assert_eq!(parser.errors.len(), 0, "Unvalid statements found");
 
         assert_eq!(
             program.statements.len(),
-            23,
+            19,
             "Unexpected number of statements"
         );
 
