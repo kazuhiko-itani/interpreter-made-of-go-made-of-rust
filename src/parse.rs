@@ -191,14 +191,17 @@ impl Parser {
             if self.current_token_is(TokenType::ASSIGN) {
                 self.next_token();
 
-                // todo
-                while !self.peek_token_is(TokenType::SEMICOLON) {
-                    self.next_token();
+                let value = self.parse_expression(Precedence::Lowest);
+
+                if let Some(v) = value {
+                    if self.peek_token_is(TokenType::SEMICOLON) {
+                        self.next_token();
+                    }
+
+                    return Some(Statement::Let(ident.clone(), v));
+                } else {
+                    return None;
                 }
-
-                self.next_token();
-
-                return Some(Statement::Let(ident.clone(), Expression::IntegerLiteral(0)));
             }
         }
 
@@ -208,11 +211,17 @@ impl Parser {
     fn parse_return_statement(&mut self) -> Option<Statement> {
         self.next_token();
 
-        if self.peek_token_is(TokenType::SEMICOLON) {
-            self.next_token();
-        }
+        let return_value = self.parse_expression(Precedence::Lowest);
 
-        Some(Statement::Return(Expression::IntegerLiteral(0)))
+        if let Some(value) = return_value {
+            if self.peek_token_is(TokenType::SEMICOLON) {
+                self.next_token();
+            }
+
+            return Some(Statement::Return(value));
+        } else {
+            None
+        }
     }
 
     fn parse_expression_statement(&mut self) -> Option<Statement> {
@@ -475,9 +484,9 @@ mod tests {
         let program_string = parser.string(&program);
 
         let expected = vec![
-            "let x = 0;\n".to_string(),
-            "let y = 0;\n".to_string(),
-            "return 0;\n".to_string(),
+            "let x = 5;\n".to_string(),
+            "let y = 10;\n".to_string(),
+            "return 5;\n".to_string(),
             "foobar;\n".to_string(),
             "(!foo);\n".to_string(),
             "(1 + 2);\n".to_string(),
@@ -569,7 +578,10 @@ mod tests {
             "Unexpected number of statements"
         );
 
-        let expected_values = vec![Expression::IntegerLiteral(0), Expression::IntegerLiteral(0)];
+        let expected_values = vec![
+            Expression::IntegerLiteral(10),
+            Expression::IntegerLiteral(15),
+        ];
 
         for (i, v) in expected_values.iter().enumerate() {
             match &program.statements[i] {
