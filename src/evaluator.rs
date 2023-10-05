@@ -158,35 +158,32 @@ mod tests {
 
     #[test]
     fn test_eval_integer() {
-        let input = "
-            5;
-            10;
-            -5;
-            -10;
-            5 + 5 + 5 + 5 - 10;
-            2 * 2 * 2 * 2 * 2;
-            -50 + 100 + -50;
-            5 * 2 + 10;
-            5 + 2 * 10;
-            20 + 2 * -10;
-            50 / 2 * 2 + 10;
-            2 * (5 + 10);
-            3 * 3 * 3 + 10;
-            3 * (3 * 3) + 10;
-            (5 + 10 * 2 + 15 / 3) * 2 + -10;
-        ";
-
-        let lexer = Lexer::new(input);
-        let mut parser = Parser::new(lexer);
-
-        let program = parser.parse_program();
-
-        assert_eq!(program.statements.len(), 15, "Unexpected number of object");
+        let inputs = vec![
+            "5;",
+            "10;",
+            "-5;",
+            "-10;",
+            "5 + 5 + 5 + 5 - 10;",
+            "2 * 2 * 2 * 2 * 2;",
+            "-50 + 100 + -50;",
+            "5 * 2 + 10;",
+            "5 + 2 * 10;",
+            "20 + 2 * -10;",
+            "50 / 2 * 2 + 10;",
+            "2 * (5 + 10);",
+            "3 * 3 * 3 + 10;",
+            "3 * (3 * 3) + 10;",
+            "(5 + 10 * 2 + 15 / 3) * 2 + -10;",
+        ];
 
         let expected_list = vec![5, 10, -5, -10, 10, 32, 0, 20, 25, 0, 60, 30, 37, 37, 50];
 
-        for (i, statement) in program.statements.iter().enumerate() {
-            let result = eval_statement(statement.clone());
+        for (i, input) in inputs.iter().enumerate() {
+            let lexer = Lexer::new(input);
+            let mut parser = Parser::new(lexer);
+
+            let program = parser.parse_program();
+            let result = eval(program);
 
             match result {
                 Object::Integer(integer) => {
@@ -199,37 +196,34 @@ mod tests {
 
     #[test]
     fn test_eval_bool() {
-        let input = "
-            true;
-            false;
-            1 < 2;
-            1 > 2;
-            1 < 1;
-            1 > 1;
-            1 == 1;
-            1 != 1;
-            1 == 2;
-            1 != 2;
-            (1 < 2) == true;
-            (1 < 2) == false;
-            (1 > 2) == true;
-            (1 > 2) == false;
-        ";
-
-        let lexer = Lexer::new(input);
-        let mut parser = Parser::new(lexer);
-
-        let program = parser.parse_program();
-
-        assert_eq!(program.statements.len(), 14, "Unexpected number of object");
+        let inputs = vec![
+            "true;",
+            "false;",
+            "1 < 2;",
+            "1 > 2;",
+            "1 < 1;",
+            "1 > 1;",
+            "1 == 1;",
+            "1 != 1;",
+            "1 == 2;",
+            "1 != 2;",
+            "(1 < 2) == true;",
+            "(1 < 2) == false;",
+            "(1 > 2) == true;",
+            "(1 > 2) == false;",
+        ];
 
         let expected_list = vec![
             true, false, true, false, false, false, true, false, false, true, true, false, false,
             true,
         ];
 
-        for (i, statement) in program.statements.iter().enumerate() {
-            let result = eval_statement(statement.clone());
+        for (i, input) in inputs.iter().enumerate() {
+            let lexer = Lexer::new(input);
+            let mut parser = Parser::new(lexer);
+
+            let program = parser.parse_program();
+            let result = eval(program);
 
             match result {
                 Object::Boolean(bool_value) => {
@@ -292,26 +286,16 @@ mod tests {
 
     #[test]
     fn test_bang_operator_eval() {
-        let input = "
-            !true;
-            !false;
-            !5;
-            !!true;
-            !!false;
-            !!5;
-        ";
-
-        let lexer = Lexer::new(input);
-        let mut parser = Parser::new(lexer);
-
-        let program = parser.parse_program();
-
-        assert_eq!(program.statements.len(), 6, "Unexpected number of object");
+        let inputs = vec!["!true;", "!false;", "!5;", "!!true;", "!!false;", "!!5;"];
 
         let expected_list = vec![false, true, false, true, false, true];
 
-        for (i, statement) in program.statements.iter().enumerate() {
-            let result = eval_statement(statement.clone());
+        for (i, input) in inputs.iter().enumerate() {
+            let lexer = Lexer::new(input);
+            let mut parser = Parser::new(lexer);
+
+            let program = parser.parse_program();
+            let result = eval(program);
 
             match result {
                 Object::Boolean(bool_value) => {
@@ -327,22 +311,15 @@ mod tests {
 
     #[test]
     fn test_if_else_expression() {
-        let input = "
-            if (true) { 10 };
-            if (false) { 10 };
-            if (1) { 10 };
-            if (1 < 2) { 10 };
-            if (1 > 2) { 10 };
-            if (1 > 2) { 10 } else { 20 };
-            if (1 < 2) { 10 } else { 20 };
-        ";
-
-        let lexer = Lexer::new(input);
-        let mut parser = Parser::new(lexer);
-
-        let program = parser.parse_program();
-
-        assert_eq!(program.statements.len(), 7, "Unexpected number of object");
+        let inputs = vec![
+            "if (true) { 10 };",
+            "if (false) { 10 };",
+            "if (1) { 10 };",
+            "if (1 < 2) { 10 };",
+            "if (1 > 2) { 10 };",
+            "if (1 > 2) { 10 } else { 20 };",
+            "if (1 < 2) { 10 } else { 20 };",
+        ];
 
         enum IntOrNone {
             IntValue(i64),
@@ -359,8 +336,12 @@ mod tests {
             IntOrNone::IntValue(10),
         ];
 
-        for (i, statement) in program.statements.iter().enumerate() {
-            let result = eval_statement(statement.clone());
+        for (i, input) in inputs.iter().enumerate() {
+            let lexer = Lexer::new(input);
+            let mut parser = Parser::new(lexer);
+
+            let program = parser.parse_program();
+            let result = eval(program);
 
             match result {
                 Object::Integer(integer) => match expected_list[i] {
