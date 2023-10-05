@@ -15,6 +15,16 @@ fn eval_program(program: Program) -> Object {
     result
 }
 
+fn eval_block_statements(statements: Vec<Statement>) -> Object {
+    let mut result = Object::Null(&NULL);
+
+    for statement in statements {
+        result = eval_statement(statement);
+    }
+
+    result
+}
+
 fn eval_statement(statement: Statement) -> Object {
     match statement {
         Statement::Expression(expression) => eval_expression(expression),
@@ -50,11 +60,9 @@ fn eval_expression(expression: Expression) -> Object {
             let condition = eval_expression(*condition_expr);
 
             match is_truthy(condition) {
-                true => eval(Program {
-                    statements: consequence,
-                }),
+                true => eval_block_statements(consequence),
                 false => match alternative {
-                    Some(alt) => eval(Program { statements: alt }),
+                    Some(alt) => eval_block_statements(alt),
                     None => Object::Null(&NULL),
                 },
             }
