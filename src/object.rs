@@ -23,7 +23,7 @@ impl fmt::Display for Null {
         write!(f, "null")
     }
 }
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Object {
     Integer(i64),
     Boolean(&'static BoolValue),
