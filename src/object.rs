@@ -31,6 +31,7 @@ pub enum Object {
     Boolean(&'static BoolValue),
     ReturnValue(Box<Object>),
     Null(&'static Null),
+    Error(String),
 }
 
 impl fmt::Display for Object {
@@ -40,6 +41,7 @@ impl fmt::Display for Object {
             Object::Boolean(boolean) => write!(f, "{}", boolean),
             Object::ReturnValue(obj) => write!(f, "{}", obj),
             Object::Null(null) => write!(f, "{}", null),
+            Object::Error(msg) => write!(f, "{}", msg),
         }
     }
 }
