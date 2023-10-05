@@ -2,6 +2,8 @@ use rustyline::error::ReadlineError;
 use rustyline::{DefaultEditor, Result};
 
 mod ast;
+mod evaluator;
+mod object;
 mod parse;
 mod tokenize;
 
@@ -47,7 +49,11 @@ impl Repl {
                 println!("{}", err);
             }
         } else {
-            println!("{:?}", parser.string(&program));
+            // println!("{:?}", parser.string(&program));
+            let result = evaluator::eval(program);
+            for object in result {
+                println!("{}", object);
+            }
         }
     }
 }
