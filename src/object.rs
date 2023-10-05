@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::fmt;
 #[derive(Debug)]
 pub struct BoolValue {
@@ -43,5 +44,26 @@ impl fmt::Display for Object {
             Object::Null(null) => write!(f, "{}", null),
             Object::Error(msg) => write!(f, "{}", msg),
         }
+    }
+}
+
+#[derive(Debug, Default, Clone)]
+pub struct Environment {
+    store: HashMap<String, Object>,
+}
+
+impl Environment {
+    pub fn new() -> Self {
+        Environment {
+            store: HashMap::new(),
+        }
+    }
+
+    pub fn get(&self, name: &str) -> Option<&Object> {
+        self.store.get(name)
+    }
+
+    pub fn set(&mut self, name: String, value: Object) {
+        self.store.insert(name, value);
     }
 }

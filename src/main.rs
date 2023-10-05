@@ -50,7 +50,8 @@ impl Repl {
             }
         } else {
             // println!("{:?}", parser.string(&program));
-            let result = evaluator::eval(program);
+            let mut env = object::Environment::new();
+            let result = evaluator::eval(program, &mut env);
             println!("{}", result);
         }
     }
