@@ -1,5 +1,5 @@
 use crate::ast::{Expression, Program, Statement};
-use crate::object::Object;
+use crate::object::{Object, FALSE, TRUE};
 
 pub fn eval(program: Program) -> Vec<Object> {
     let mut results = Vec::new();
@@ -22,6 +22,13 @@ fn eval_statement(statement: Statement) -> Object {
 fn eval_expression(expression: Expression) -> Object {
     match expression {
         Expression::IntegerLiteral(integer) => Object::Integer(integer),
+        Expression::Boolean(bool) => {
+            if bool == "true" {
+                Object::Boolean(&TRUE)
+            } else {
+                Object::Boolean(&FALSE)
+            }
+        }
         _ => eval_expression(Expression::Ident("todo".to_string())),
     }
 }
@@ -33,7 +40,7 @@ mod tests {
     use crate::tokenize::Lexer;
 
     #[test]
-    fn test_eval() {
+    fn test_eval_integer() {
         let input = "
             5;
             10;
@@ -53,6 +60,33 @@ mod tests {
             match &result[i] {
                 Object::Integer(integer) => {
                     assert_eq!(integer, expected, "Unexpected integer value");
+                }
+                _ => panic!("Unexpected object type"),
+            }
+        }
+    }
+
+    #[test]
+    fn test_eval_bool() {
+        let input = "
+            true;
+            false;
+        ";
+
+        let lexer = Lexer::new(input);
+        let mut parser = Parser::new(lexer);
+
+        let program = parser.parse_program();
+        let result = eval(program);
+
+        assert_eq!(result.len(), 2, "Unexpected number of object");
+
+        let expected_list = vec![true, false];
+
+        for (i, expected) in expected_list.iter().enumerate() {
+            match &result[i] {
+                Object::Boolean(bool_value) => {
+                    assert_eq!(bool_value.value, *expected, "Unexpected boolean value");
                 }
                 _ => panic!("Unexpected object type"),
             }
