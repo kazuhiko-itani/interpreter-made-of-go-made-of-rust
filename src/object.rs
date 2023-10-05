@@ -1,5 +1,5 @@
 use std::fmt;
-
+#[derive(Debug)]
 pub struct BoolValue {
     pub value: bool,
 }
@@ -15,7 +15,7 @@ impl fmt::Display for BoolValue {
 
 pub const TRUE: BoolValue = BoolValue { value: true };
 pub const FALSE: BoolValue = BoolValue { value: false };
-
+#[derive(Debug)]
 struct Null {}
 
 impl fmt::Display for Null {
@@ -23,7 +23,7 @@ impl fmt::Display for Null {
         write!(f, "null")
     }
 }
-
+#[derive(Debug)]
 pub enum Object {
     Integer(i64),
     Boolean(&'static BoolValue),
