@@ -16,7 +16,9 @@ impl fmt::Display for BoolValue {
 pub const TRUE: BoolValue = BoolValue { value: true };
 pub const FALSE: BoolValue = BoolValue { value: false };
 #[derive(Debug)]
-struct Null {}
+pub struct Null {}
+
+pub const NULL: Null = Null {};
 
 impl fmt::Display for Null {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {

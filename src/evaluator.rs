@@ -1,15 +1,18 @@
 use crate::ast::{Expression, Program, Statement};
-use crate::object::{BoolValue, Object, FALSE, TRUE};
+use crate::object::{BoolValue, Object, FALSE, NULL, TRUE};
 
-pub fn eval(program: Program) -> Vec<Object> {
-    let mut results = Vec::new();
+pub fn eval(program: Program) -> Object {
+    eval_program(program)
+}
+
+fn eval_program(program: Program) -> Object {
+    let mut result = Object::Null(&NULL);
 
     for statement in program.statements {
-        let result = eval_statement(statement);
-        results.push(result);
+        result = eval_statement(statement);
     }
 
-    results
+    result
 }
 
 fn eval_statement(statement: Statement) -> Object {
@@ -43,7 +46,28 @@ fn eval_expression(expression: Expression) -> Object {
             let evaluated_right: Object = eval_expression(*right);
             eval_infix_expression(op, evaluated_left, evaluated_right)
         }
+        Expression::If(condition_expr, consequence, alternative) => {
+            let condition = eval_expression(*condition_expr);
+
+            match is_truthy(condition) {
+                true => eval(Program {
+                    statements: consequence,
+                }),
+                false => match alternative {
+                    Some(alt) => eval(Program { statements: alt }),
+                    None => Object::Null(&NULL),
+                },
+            }
+        }
         _ => eval_expression(Expression::Ident("todo".to_string())),
+    }
+}
+
+fn is_truthy(obj: Object) -> bool {
+    match obj {
+        Object::Null(_) => false,
+        Object::Boolean(bool) => bool.value,
+        _ => true,
     }
 }
 
@@ -139,16 +163,17 @@ mod tests {
         let mut parser = Parser::new(lexer);
 
         let program = parser.parse_program();
-        let result = eval(program);
 
-        assert_eq!(result.len(), 15, "Unexpected number of object");
+        assert_eq!(program.statements.len(), 15, "Unexpected number of object");
 
         let expected_list = vec![5, 10, -5, -10, 10, 32, 0, 20, 25, 0, 60, 30, 37, 37, 50];
 
-        for (i, expected) in expected_list.iter().enumerate() {
-            match &result[i] {
+        for (i, statement) in program.statements.iter().enumerate() {
+            let result = eval_statement(statement.clone());
+
+            match result {
                 Object::Integer(integer) => {
-                    assert_eq!(integer, expected, "Unexpected integer value");
+                    assert_eq!(integer, expected_list[i], "Unexpected integer value");
                 }
                 _ => panic!("Unexpected object type"),
             }
@@ -178,18 +203,23 @@ mod tests {
         let mut parser = Parser::new(lexer);
 
         let program = parser.parse_program();
-        let result = eval(program);
 
-        assert_eq!(result.len(), 14, "Unexpected number of object");
+        assert_eq!(program.statements.len(), 14, "Unexpected number of object");
 
         let expected_list = vec![
-            true, false, true, false, false, false, true, false, false, true,
+            true, false, true, false, false, false, true, false, false, true, true, false, false,
+            true,
         ];
 
-        for (i, expected) in expected_list.iter().enumerate() {
-            match &result[i] {
+        for (i, statement) in program.statements.iter().enumerate() {
+            let result = eval_statement(statement.clone());
+
+            match result {
                 Object::Boolean(bool_value) => {
-                    assert_eq!(bool_value.value, *expected, "Unexpected boolean value");
+                    assert_eq!(
+                        bool_value.value, expected_list[i],
+                        "Unexpected boolean value"
+                    );
                 }
                 _ => panic!("Unexpected object type"),
             }
@@ -211,17 +241,74 @@ mod tests {
         let mut parser = Parser::new(lexer);
 
         let program = parser.parse_program();
-        let result = eval(program);
 
-        assert_eq!(result.len(), 6, "Unexpected number of object");
+        assert_eq!(program.statements.len(), 6, "Unexpected number of object");
 
         let expected_list = vec![false, true, false, true, false, true];
 
-        for (i, expected) in expected_list.iter().enumerate() {
-            match &result[i] {
+        for (i, statement) in program.statements.iter().enumerate() {
+            let result = eval_statement(statement.clone());
+
+            match result {
                 Object::Boolean(bool_value) => {
-                    assert_eq!(bool_value.value, *expected, "Unexpected boolean value");
+                    assert_eq!(
+                        bool_value.value, expected_list[i],
+                        "Unexpected boolean value"
+                    );
                 }
+                _ => panic!("Unexpected object type"),
+            }
+        }
+    }
+
+    #[test]
+    fn test_if_else_expression() {
+        let input = "
+            if (true) { 10 };
+            if (false) { 10 };
+            if (1) { 10 };
+            if (1 < 2) { 10 };
+            if (1 > 2) { 10 };
+            if (1 > 2) { 10 } else { 20 };
+            if (1 < 2) { 10 } else { 20 };
+        ";
+
+        let lexer = Lexer::new(input);
+        let mut parser = Parser::new(lexer);
+
+        let program = parser.parse_program();
+
+        assert_eq!(program.statements.len(), 7, "Unexpected number of object");
+
+        enum IntOrNone {
+            IntValue(i64),
+            NoneValue,
+        }
+
+        let expected_list: Vec<IntOrNone> = vec![
+            IntOrNone::IntValue(10),
+            IntOrNone::NoneValue,
+            IntOrNone::IntValue(10),
+            IntOrNone::IntValue(10),
+            IntOrNone::NoneValue,
+            IntOrNone::IntValue(20),
+            IntOrNone::IntValue(10),
+        ];
+
+        for (i, statement) in program.statements.iter().enumerate() {
+            let result = eval_statement(statement.clone());
+
+            match result {
+                Object::Integer(integer) => match expected_list[i] {
+                    IntOrNone::IntValue(expected) => {
+                        assert_eq!(integer, expected, "Unexpected integer value");
+                    }
+                    _ => panic!("Unexpected object type"),
+                },
+                Object::Null(_) => match expected_list[i] {
+                    IntOrNone::NoneValue => {}
+                    _ => panic!("Unexpected object type"),
+                },
                 _ => panic!("Unexpected object type"),
             }
         }

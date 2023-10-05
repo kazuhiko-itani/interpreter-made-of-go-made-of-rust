@@ -51,9 +51,7 @@ impl Repl {
         } else {
             // println!("{:?}", parser.string(&program));
             let result = evaluator::eval(program);
-            for object in result {
-                println!("{}", object);
-            }
+            println!("{}", result);
         }
     }
 }
