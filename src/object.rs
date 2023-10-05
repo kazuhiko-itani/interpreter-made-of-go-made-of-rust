@@ -29,6 +29,7 @@ impl fmt::Display for Null {
 pub enum Object {
     Integer(i64),
     Boolean(&'static BoolValue),
+    ReturnValue(Box<Object>),
     Null(&'static Null),
 }
 
@@ -37,6 +38,7 @@ impl fmt::Display for Object {
         match self {
             Object::Integer(integer) => write!(f, "{}", integer),
             Object::Boolean(boolean) => write!(f, "{}", boolean),
+            Object::ReturnValue(obj) => write!(f, "{}", obj),
             Object::Null(null) => write!(f, "{}", null),
         }
     }

@@ -10,6 +10,10 @@ fn eval_program(program: Program) -> Object {
 
     for statement in program.statements {
         result = eval_statement(statement);
+
+        if let Object::ReturnValue(_) = result {
+            break;
+        }
     }
 
     result
@@ -20,6 +24,10 @@ fn eval_block_statements(statements: Vec<Statement>) -> Object {
 
     for statement in statements {
         result = eval_statement(statement);
+
+        if let Object::ReturnValue(_) = result {
+            break;
+        }
     }
 
     result
@@ -28,6 +36,7 @@ fn eval_block_statements(statements: Vec<Statement>) -> Object {
 fn eval_statement(statement: Statement) -> Object {
     match statement {
         Statement::Expression(expression) => eval_expression(expression),
+        Statement::Return(expr) => Object::ReturnValue(Box::new(eval_expression(expr))),
         _ => eval_expression(Expression::Ident("todo".to_string())),
     }
 }
@@ -230,6 +239,53 @@ mod tests {
                     );
                 }
                 _ => panic!("Unexpected object type"),
+            }
+        }
+    }
+
+    #[test]
+    fn test_return_eval() {
+        let inputs = vec![
+            "return 10;",
+            "return 10; 9;",
+            "return 2 * 5; 9;",
+            "9; return 2 * 5; 9;",
+            "if (10 > 1) {
+                if (10 > 1) {
+                    return 10;
+                }
+                return 1;
+            }",
+            "if (10 > 1) {
+                if (0 > 1) {
+                    return 10;
+                } else {
+                    return 5;
+                }
+                return 1;
+            }",
+        ];
+
+        let expected_list = vec![10, 10, 10, 10, 10, 5];
+
+        for (i, input) in inputs.iter().enumerate() {
+            let lexer = Lexer::new(input);
+            let mut parser = Parser::new(lexer);
+
+            let program = parser.parse_program();
+
+            let result = eval(program);
+
+            println!("{}", result);
+
+            match result {
+                Object::ReturnValue(obj) => match *obj {
+                    Object::Integer(integer) => {
+                        assert_eq!(integer, expected_list[i], "Unexpected integer value");
+                    }
+                    _ => panic!("Unexpected object type. actual {}", obj),
+                },
+                _ => panic!("Unexpected object type. actual {}", result),
             }
         }
     }
