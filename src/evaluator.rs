@@ -1,5 +1,3 @@
-use std::f32::consts::E;
-
 use crate::ast::{Expression, Program, Statement};
 use crate::object::{BoolValue, Environment, Object, FALSE, NULL, TRUE};
 
@@ -108,6 +106,23 @@ fn eval_expression(expression: Expression, env: &mut Environment) -> Object {
                 new_error(format!("identifier not found: {}", name))
             }
         }
+        Expression::Function(args, body) => Object::Function(args, body, env.clone()),
+        Expression::Call(function, args) => {
+            let function = eval_expression(*function, env);
+            if (is_error(&function)) {
+                return function;
+            }
+
+            let arguments = args
+                .into_iter()
+                .map(|a| eval_expression(a, env))
+                .collect::<Vec<_>>();
+            if (arguments.len() == 1) && is_error(&arguments[0]) {
+                return arguments[0].clone();
+            }
+
+            apply_function(function, arguments)
+        }
         _ => eval_expression(Expression::Ident("todo".to_string()), env),
     }
 }
@@ -190,6 +205,32 @@ fn eval_boolean_infix_expression(
     }
 }
 
+fn apply_function(func: Object, args: Vec<Object>) -> Object {
+    match func {
+        Object::Function(params, body, env) => {
+            let mut extended_env = extend_function_env(env, params, args);
+            let evaluated = eval_block_statements(body, &mut extended_env);
+
+            match evaluated {
+                Object::ReturnValue(value) => *value,
+                _ => evaluated,
+            }
+        }
+
+        _ => new_error(format!("not a function: {}", func)),
+    }
+}
+
+// @TODO outer.envのような設計のほうがベターな気がする
+fn extend_function_env(env: Environment, params: Vec<String>, args: Vec<Object>) -> Environment {
+    let mut store = env.store.clone();
+    for (param, arg) in params.into_iter().zip(args.into_iter()) {
+        store.insert(param, arg);
+    }
+
+    Environment { store }
+}
+
 fn bool_to_object(input: bool) -> &'static BoolValue {
     if input {
         &TRUE
@@ -211,8 +252,6 @@ fn is_error(obj: &Object) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use std::env;
-
     use super::*;
     use crate::parse::Parser;
     use crate::tokenize::Lexer;
@@ -489,6 +528,84 @@ mod tests {
                 }
                 _ => panic!("Unexpected object type. {}", result),
             }
+        }
+    }
+
+    #[test]
+    fn test_function_parsing() {
+        let input = "fn(x, y) { x + y; }";
+
+        let lexer = Lexer::new(input);
+        let mut parser = Parser::new(lexer);
+
+        let program = parser.parse_program();
+        let env = &mut Environment::new();
+        let result = eval(program, env);
+
+        match result {
+            Object::Function(args, body, _) => {
+                assert_eq!(args[0], "x", "Unexpected arg");
+                assert_eq!(args[1], "y", "Unexpected arg");
+
+                assert_eq!(body.len(), 1, "Unexpected body length");
+                assert_eq!(body[0].to_string(), "(x + y)", "Unexpected body");
+            }
+            _ => panic!("Unexpected object type. {}", result),
+        }
+    }
+
+    #[test]
+    fn test_function_application() {
+        let inputs = vec![
+            "let identity = fn(x) { x; }; identity(5);",
+            "let identity = fn(x) { return x; }; identity(5);",
+            "let double = fn(x) { x * 2; }; double(5);",
+            "let add = fn(x, y) { x + y; }; add(5, 5);",
+            "let add = fn(x, y) { x + y; }; add(5 + 5, add(5, 5));",
+            "fn(x) { x; }(5)",
+        ];
+
+        let expected_list = vec![5, 5, 10, 10, 20, 5];
+
+        for (i, input) in inputs.iter().enumerate() {
+            let lexer = Lexer::new(input);
+            let mut parser = Parser::new(lexer);
+
+            let program = parser.parse_program();
+            let env = &mut Environment::new();
+            let result = eval(program, env);
+
+            match result {
+                Object::Integer(integer) => {
+                    assert_eq!(integer, expected_list[i], "Unexpected integer");
+                }
+                _ => panic!("Unexpected object type. {}", result),
+            }
+        }
+    }
+
+    #[test]
+    fn test_closure() {
+        let input = "
+        let newAdder = fn(x) {
+            fn(y) { x + y };
+        };
+        let addTwo = newAdder(2);
+        addTwo(2);
+        ";
+
+        let lexer = Lexer::new(input);
+        let mut parser = Parser::new(lexer);
+
+        let program = parser.parse_program();
+        let env = &mut Environment::new();
+        let result = eval(program, env);
+
+        match result {
+            Object::Integer(integer) => {
+                assert_eq!(integer, 4, "Unexpected integer");
+            }
+            _ => panic!("Unexpected object type. {}", result),
         }
     }
 }

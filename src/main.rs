@@ -16,13 +16,14 @@ impl Repl {
 
     fn start(&self) -> Result<()> {
         let mut rl = DefaultEditor::new()?;
+        let mut env = object::Environment::new();
 
         loop {
             let readline = rl.readline(">> ");
 
             match readline {
                 Ok(line) => {
-                    self.parse_input(&line);
+                    self.parse_input(&line, &mut env);
                 }
                 Err(ReadlineError::Interrupted) | Err(ReadlineError::Eof) => {
                     println!("Goodbye!");
@@ -38,7 +39,7 @@ impl Repl {
         Ok(())
     }
 
-    fn parse_input(&self, input: &str) {
+    fn parse_input(&self, input: &str, env: &mut object::Environment) {
         let lexer = tokenize::Lexer::new(input);
         let mut parser = parse::Parser::new(lexer);
 
@@ -50,8 +51,7 @@ impl Repl {
             }
         } else {
             // println!("{:?}", parser.string(&program));
-            let mut env = object::Environment::new();
-            let result = evaluator::eval(program, &mut env);
+            let result = evaluator::eval(program, env);
             println!("{}", result);
         }
     }

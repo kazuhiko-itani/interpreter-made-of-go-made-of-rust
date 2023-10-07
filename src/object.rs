@@ -1,5 +1,7 @@
+use crate::ast::Statement;
 use std::collections::HashMap;
 use std::fmt;
+
 #[derive(Debug)]
 pub struct BoolValue {
     pub value: bool,
@@ -31,6 +33,7 @@ pub enum Object {
     Integer(i64),
     Boolean(&'static BoolValue),
     ReturnValue(Box<Object>),
+    Function(Vec<String>, Vec<Statement>, Environment),
     Null(&'static Null),
     Error(String),
 }
@@ -41,6 +44,25 @@ impl fmt::Display for Object {
             Object::Integer(integer) => write!(f, "{}", integer),
             Object::Boolean(boolean) => write!(f, "{}", boolean),
             Object::ReturnValue(obj) => write!(f, "{}", obj),
+            Object::Function(args, body, env) => {
+                let mut args_str = String::new();
+
+                for (i, arg) in args.iter().enumerate() {
+                    args_str.push_str(&arg);
+                    if i != args.len() - 1 {
+                        args_str.push_str(", ");
+                    }
+                }
+
+                let mut body_str = String::new();
+
+                for statement in body {
+                    body_str.push_str(&statement.to_string());
+                    body_str.push_str(";\n");
+                }
+
+                write!(f, "fn({}) {{ {} }}", args_str, body_str)
+            }
             Object::Null(null) => write!(f, "{}", null),
             Object::Error(msg) => write!(f, "{}", msg),
         }
@@ -49,7 +71,7 @@ impl fmt::Display for Object {
 
 #[derive(Debug, Default, Clone)]
 pub struct Environment {
-    store: HashMap<String, Object>,
+    pub store: HashMap<String, Object>,
 }
 
 impl Environment {
