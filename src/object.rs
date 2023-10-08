@@ -35,6 +35,7 @@ pub enum Object {
     Boolean(&'static BoolValue),
     ReturnValue(Box<Object>),
     Function(Vec<String>, Vec<Statement>, Environment),
+    BuiltInFunction(fn(Vec<Object>) -> Object),
     Null(&'static Null),
     Error(String),
 }
@@ -65,6 +66,7 @@ impl fmt::Display for Object {
 
                 write!(f, "fn({}) {{ {} }}", args_str, body_str)
             }
+            Object::BuiltInFunction(_) => write!(f, "builtin function"),
             Object::Null(null) => write!(f, "{}", null),
             Object::Error(msg) => write!(f, "{}", msg),
         }
@@ -74,17 +76,24 @@ impl fmt::Display for Object {
 #[derive(Debug, Default, Clone)]
 pub struct Environment {
     pub store: HashMap<String, Object>,
+    pub builtins: HashMap<String, Object>,
 }
 
 impl Environment {
     pub fn new() -> Self {
         Environment {
             store: HashMap::new(),
+            builtins: HashMap::new(),
         }
     }
 
+    pub fn register_builtin(&mut self, name: &str, func: fn(Vec<Object>) -> Object) {
+        self.builtins
+            .insert(name.to_string(), Object::BuiltInFunction(func));
+    }
+
     pub fn get(&self, name: &str) -> Option<&Object> {
-        self.store.get(name)
+        self.store.get(name).or_else(|| self.builtins.get(name))
     }
 
     pub fn set(&mut self, name: String, value: Object) {

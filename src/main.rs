@@ -2,6 +2,7 @@ use rustyline::error::ReadlineError;
 use rustyline::{DefaultEditor, Result};
 
 mod ast;
+mod builtins;
 mod evaluator;
 mod object;
 mod parse;
@@ -17,6 +18,7 @@ impl Repl {
     fn start(&self) -> Result<()> {
         let mut rl = DefaultEditor::new()?;
         let mut env = object::Environment::new();
+        self.set_builtin_func_to_env(&mut env);
 
         loop {
             let readline = rl.readline(">> ");
@@ -54,6 +56,10 @@ impl Repl {
             let result = evaluator::eval(program, env);
             println!("{}", result);
         }
+    }
+
+    fn set_builtin_func_to_env(&self, env: &mut object::Environment) {
+        env.register_builtin("len", builtins::builtin_len);
     }
 }
 

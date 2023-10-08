@@ -100,13 +100,7 @@ fn eval_expression(expression: Expression, env: &mut Environment) -> Object {
                 },
             }
         }
-        Expression::Ident(name) => {
-            if let Some(value) = env.get(&name) {
-                value.clone()
-            } else {
-                new_error(format!("identifier not found: {}", name))
-            }
-        }
+        Expression::Ident(name) => eval_identifier(name, env),
         Expression::Function(args, body) => Object::Function(args, body, env.clone()),
         Expression::Call(function, args) => {
             let function = eval_expression(*function, env);
@@ -133,6 +127,14 @@ fn is_truthy(obj: Object) -> bool {
         Object::Null(_) => false,
         Object::Boolean(bool) => bool.value,
         _ => true,
+    }
+}
+
+fn eval_identifier(name: String, env: &mut Environment) -> Object {
+    if let Some(value) = env.get(&name) {
+        value.clone()
+    } else {
+        new_error(format!("identifier not found: {}", name))
     }
 }
 
@@ -219,6 +221,7 @@ fn apply_function(func: Object, args: Vec<Object>) -> Object {
             }
         }
 
+        Object::BuiltInFunction(func) => func(args),
         _ => new_error(format!("not a function: {}", func)),
     }
 }
@@ -230,7 +233,10 @@ fn extend_function_env(env: Environment, params: Vec<String>, args: Vec<Object>)
         store.insert(param, arg);
     }
 
-    Environment { store }
+    Environment {
+        store,
+        builtins: env.builtins,
+    }
 }
 
 fn bool_to_object(input: bool) -> &'static BoolValue {
@@ -241,7 +247,7 @@ fn bool_to_object(input: bool) -> &'static BoolValue {
     }
 }
 
-fn new_error(format: String) -> Object {
+pub fn new_error(format: String) -> Object {
     Object::Error(format!("{}", format))
 }
 
@@ -255,6 +261,7 @@ fn is_error(obj: &Object) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::builtins::builtin_len;
     use crate::parse::Parser;
     use crate::tokenize::Lexer;
 
@@ -285,8 +292,8 @@ mod tests {
             let mut parser = Parser::new(lexer);
 
             let program = parser.parse_program();
-            let env = &mut Environment::new();
-            let result = eval(program, env);
+            let mut env = create_env();
+            let result = eval(program, &mut env);
 
             match result {
                 Object::Integer(integer) => {
@@ -305,8 +312,8 @@ mod tests {
         let mut parser = Parser::new(lexer);
 
         let program = parser.parse_program();
-        let env = &mut Environment::new();
-        let result = eval(program, env);
+        let mut env = create_env();
+        let result = eval(program, &mut env);
 
         match result {
             Object::String(string) => {
@@ -324,14 +331,60 @@ mod tests {
         let mut parser = Parser::new(lexer);
 
         let program = parser.parse_program();
-        let env = &mut Environment::new();
-        let result = eval(program, env);
+        let mut env = create_env();
+        let result = eval(program, &mut env);
 
         match result {
             Object::String(string) => {
                 assert_eq!(string, "Hello World!", "Unexpected string value");
             }
             _ => panic!("Unexpected object type, {}", result),
+        }
+    }
+
+    #[test]
+    fn test_eval_builtin_functions() {
+        let inputs = vec!["len(\"\");", "len(\"four\");", "len(\"hello world\");"];
+
+        let expected_list = vec![0, 4, 11];
+
+        for (i, input) in inputs.iter().enumerate() {
+            let lexer = Lexer::new(input);
+            let mut parser = Parser::new(lexer);
+
+            let program = parser.parse_program();
+            let mut env = create_env();
+            let result = eval(program, &mut env);
+
+            match result {
+                Object::Integer(integer) => {
+                    assert_eq!(integer, expected_list[i], "Unexpected integer value");
+                }
+                _ => panic!("Unexpected object type. {}", result),
+            }
+        }
+
+        let wrong_inputs = vec!["len(1);", "len(\"one\", \"two\");"];
+
+        let expected_error_list = vec![
+            "argument to `len` not supported, got 1",
+            "wrong number of arguments. got=2, want=1",
+        ];
+
+        for (i, input) in wrong_inputs.iter().enumerate() {
+            let lexer = Lexer::new(input);
+            let mut parser = Parser::new(lexer);
+
+            let program = parser.parse_program();
+            let mut env = create_env();
+            let result = eval(program, &mut env);
+
+            match result {
+                Object::Error(msg) => {
+                    assert_eq!(msg, expected_error_list[i], "Unexpected integer value");
+                }
+                _ => panic!("Unexpected object type. {}", result),
+            }
         }
     }
 
@@ -364,8 +417,8 @@ mod tests {
             let mut parser = Parser::new(lexer);
 
             let program = parser.parse_program();
-            let env = &mut Environment::new();
-            let result = eval(program, env);
+            let mut env = create_env();
+            let result = eval(program, &mut env);
 
             match result {
                 Object::Boolean(bool_value) => {
@@ -410,8 +463,8 @@ mod tests {
 
             let program = parser.parse_program();
 
-            let env = &mut Environment::new();
-            let result = eval(program, env);
+            let mut env = create_env();
+            let result = eval(program, &mut env);
 
             println!("{}", result);
 
@@ -438,8 +491,8 @@ mod tests {
             let mut parser = Parser::new(lexer);
 
             let program = parser.parse_program();
-            let env = &mut Environment::new();
-            let result = eval(program, env);
+            let mut env = create_env();
+            let result = eval(program, &mut env);
 
             match result {
                 Object::Boolean(bool_value) => {
@@ -485,8 +538,8 @@ mod tests {
             let mut parser = Parser::new(lexer);
 
             let program = parser.parse_program();
-            let env = &mut Environment::new();
-            let result = eval(program, env);
+            let mut env = create_env();
+            let result = eval(program, &mut env);
 
             match result {
                 Object::Integer(integer) => match expected_list[i] {
@@ -533,8 +586,8 @@ mod tests {
             let mut parser = Parser::new(lexer);
 
             let program = parser.parse_program();
-            let env = &mut Environment::new();
-            let result = eval(program, env);
+            let mut env = create_env();
+            let result = eval(program, &mut env);
 
             match result {
                 Object::Error(msg) => {
@@ -561,8 +614,8 @@ mod tests {
             let mut parser = Parser::new(lexer);
 
             let program = parser.parse_program();
-            let env = &mut Environment::new();
-            let result = eval(program, env);
+            let mut env = create_env();
+            let result = eval(program, &mut env);
 
             match result {
                 Object::Integer(integer) => {
@@ -581,8 +634,8 @@ mod tests {
         let mut parser = Parser::new(lexer);
 
         let program = parser.parse_program();
-        let env = &mut Environment::new();
-        let result = eval(program, env);
+        let mut env = create_env();
+        let result = eval(program, &mut env);
 
         match result {
             Object::Function(args, body, _) => {
@@ -614,8 +667,8 @@ mod tests {
             let mut parser = Parser::new(lexer);
 
             let program = parser.parse_program();
-            let env = &mut Environment::new();
-            let result = eval(program, env);
+            let mut env = create_env();
+            let result = eval(program, &mut env);
 
             match result {
                 Object::Integer(integer) => {
@@ -640,8 +693,8 @@ mod tests {
         let mut parser = Parser::new(lexer);
 
         let program = parser.parse_program();
-        let env = &mut Environment::new();
-        let result = eval(program, env);
+        let mut env = create_env();
+        let result = eval(program, &mut env);
 
         match result {
             Object::Integer(integer) => {
@@ -649,5 +702,13 @@ mod tests {
             }
             _ => panic!("Unexpected object type. {}", result),
         }
+    }
+
+    fn create_env() -> Environment {
+        let mut env = Environment::new();
+
+        env.register_builtin("len", builtin_len);
+
+        env
     }
 }
