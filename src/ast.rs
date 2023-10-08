@@ -12,6 +12,7 @@ pub enum Statement {
 pub enum Expression {
     Ident(String),
     IntegerLiteral(i64),
+    StringLiteral(String),
     Function(Vec<String>, Vec<Statement>),
     Return(Box<Expression>),
     Prefix(String, Box<Expression>),
@@ -36,6 +37,7 @@ impl fmt::Display for Expression {
         match self {
             Expression::Ident(ident) => write!(f, "{}", ident),
             Expression::IntegerLiteral(int) => write!(f, "{}", int),
+            Expression::StringLiteral(string) => write!(f, "\"{}\"", string),
             Expression::Function(params, body) => {
                 let mut params_str = String::new();
 

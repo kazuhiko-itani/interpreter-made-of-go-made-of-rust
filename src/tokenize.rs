@@ -11,6 +11,7 @@ pub enum TokenType {
     IDENT,
     ASSIGN,
     INT,
+    STRING,
     FUNCTION,
     LPAREN,
     RPAREN,
@@ -146,6 +147,13 @@ impl Lexer {
                 token_type: TokenType::GT,
                 literal: ">".to_string(),
             },
+            Some('"') => {
+                let literal = self.read_string();
+                Token {
+                    token_type: TokenType::STRING,
+                    literal,
+                }
+            }
             Some(ch) if ch.is_alphabetic() => {
                 let literal = self.read_ident();
                 let token_type = match literal.as_str() {
@@ -220,6 +228,18 @@ impl Lexer {
         self.input[start_position..self.position].to_string()
     }
 
+    fn read_string(&mut self) -> String {
+        let start_position = self.position + 1;
+        loop {
+            self.read_char();
+            if self.ch == Some('"') || self.ch == None {
+                break;
+            }
+        }
+
+        self.input[start_position..self.position].to_string()
+    }
+
     fn peek_char(&self) -> Option<char> {
         if self.read_position >= self.input.len() {
             None
@@ -256,6 +276,9 @@ mod tests {
 
         10 == 10;
         10 != 9;
+
+        \"foobar\"
+        \"foo bar\"
         ";
 
         let mut lexer = Lexer::new(input);
@@ -552,6 +575,18 @@ mod tests {
             Token {
                 token_type: TokenType::SEMICOLON,
                 literal: ";".to_string(),
+            },
+            Token {
+                token_type: TokenType::STRING,
+                literal: "foobar".to_string(),
+            },
+            Token {
+                token_type: TokenType::STRING,
+                literal: "foo bar".to_string(),
+            },
+            Token {
+                token_type: TokenType::EOF,
+                literal: "".to_string(),
             },
         ];
 

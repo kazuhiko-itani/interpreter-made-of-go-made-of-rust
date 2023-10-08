@@ -53,6 +53,7 @@ fn eval_statement(statement: Statement, env: &mut Environment) -> Object {
 fn eval_expression(expression: Expression, env: &mut Environment) -> Object {
     match expression {
         Expression::IntegerLiteral(integer) => Object::Integer(integer),
+        Expression::StringLiteral(string) => Object::String(string),
         Expression::Boolean(bool) => {
             if bool == "true" {
                 Object::Boolean(&TRUE)
@@ -292,6 +293,25 @@ mod tests {
                 }
                 _ => panic!("Unexpected object type"),
             }
+        }
+    }
+
+    #[test]
+    fn test_eval_string() {
+        let input = "\"Hello World!\"";
+
+        let lexer = Lexer::new(input);
+        let mut parser = Parser::new(lexer);
+
+        let program = parser.parse_program();
+        let env = &mut Environment::new();
+        let result = eval(program, env);
+
+        match result {
+            Object::String(string) => {
+                assert_eq!(string, "Hello World!", "Unexpected boolean value");
+            }
+            _ => panic!("Unexpected object type, {}", result),
         }
     }
 

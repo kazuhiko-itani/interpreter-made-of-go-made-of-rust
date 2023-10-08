@@ -38,6 +38,7 @@ impl Parser {
     fn setup_prefix_parse_fns(&mut self) {
         self.register_prefix(TokenType::IDENT, Self::parse_ident);
         self.register_prefix(TokenType::INT, Self::parse_integer_literal);
+        self.register_prefix(TokenType::STRING, Self::parse_string_literal);
         self.register_prefix(TokenType::BANG, Self::parse_prefix_expression);
         self.register_prefix(TokenType::MINUS, Self::parse_prefix_expression);
         self.register_prefix(TokenType::TRUE, Self::parse_boolean);
@@ -295,6 +296,16 @@ impl Parser {
         }
     }
 
+    fn parse_string_literal(&mut self) -> Option<Expression> {
+        if let TokenType::STRING = self.current_token.token_type {
+            Some(Expression::StringLiteral(
+                self.current_token.literal.clone(),
+            ))
+        } else {
+            None
+        }
+    }
+
     fn parse_boolean(&mut self) -> Option<Expression> {
         if let TokenType::TRUE = self.current_token.token_type {
             Some(Expression::Boolean("true".to_string()))
@@ -522,6 +533,42 @@ mod tests {
         );
 
         assert_eq!(program_string, expected);
+    }
+
+    #[test]
+    fn test_string_literal_expression() {
+        let input = "
+            \"hello world\";
+        ";
+
+        let lexer = Lexer::new(input);
+        let mut parser = Parser::new(lexer);
+
+        let program = parser.parse_program();
+
+        assert_eq!(
+            parser.errors.len(),
+            0,
+            "Unvalid statements found. {:?}",
+            parser.errors
+        );
+
+        assert_eq!(
+            program.statements.len(),
+            1,
+            "Unexpected number of statements"
+        );
+
+        let expected_values = vec![Expression::StringLiteral("hello world".to_string())];
+
+        for (i, v) in expected_values.iter().enumerate() {
+            match &program.statements[i] {
+                Statement::Expression(value) => {
+                    assert_eq!(value, v, "Unexpected IDENT name");
+                }
+                _ => panic!("Unexpected statement type"),
+            }
+        }
     }
 
     #[test]

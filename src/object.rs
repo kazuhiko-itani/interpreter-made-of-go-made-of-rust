@@ -31,6 +31,7 @@ impl fmt::Display for Null {
 #[derive(Debug, Clone)]
 pub enum Object {
     Integer(i64),
+    String(String),
     Boolean(&'static BoolValue),
     ReturnValue(Box<Object>),
     Function(Vec<String>, Vec<Statement>, Environment),
@@ -42,6 +43,7 @@ impl fmt::Display for Object {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Object::Integer(integer) => write!(f, "{}", integer),
+            Object::String(string) => write!(f, "\"{}\"", string),
             Object::Boolean(boolean) => write!(f, "{}", boolean),
             Object::ReturnValue(obj) => write!(f, "{}", obj),
             Object::Function(args, body, env) => {
