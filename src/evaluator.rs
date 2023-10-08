@@ -68,8 +68,8 @@ fn eval_expression(expression: Expression, env: &mut Environment) -> Object {
             }
 
             match op.as_str() {
-                "!" => eval_bang_operator_expression(right, env),
-                "-" => eval_minus_prefix_operator_expression(right, env),
+                "!" => eval_bang_operator_expression(right),
+                "-" => eval_minus_prefix_operator_expression(right),
                 _ => new_error(format!("unknown operator: {}", op)),
             }
         }
@@ -84,7 +84,7 @@ fn eval_expression(expression: Expression, env: &mut Environment) -> Object {
                 return evaluated_right;
             }
 
-            eval_infix_expression(op, evaluated_left, evaluated_right, env)
+            eval_infix_expression(op, evaluated_left, evaluated_right)
         }
         Expression::If(condition_expr, consequence, alternative) => {
             let condition = eval_expression(*condition_expr, env);
@@ -136,7 +136,7 @@ fn is_truthy(obj: Object) -> bool {
     }
 }
 
-fn eval_bang_operator_expression(right: Object, env: &mut Environment) -> Object {
+fn eval_bang_operator_expression(right: Object) -> Object {
     match right {
         Object::Boolean(bool) => {
             if bool.value {
@@ -149,20 +149,20 @@ fn eval_bang_operator_expression(right: Object, env: &mut Environment) -> Object
     }
 }
 
-fn eval_minus_prefix_operator_expression(right: Object, env: &mut Environment) -> Object {
+fn eval_minus_prefix_operator_expression(right: Object) -> Object {
     match right {
         Object::Integer(integer) => Object::Integer(-integer),
         _ => new_error(format!("unknown operator: -{}", right)),
     }
 }
 
-fn eval_infix_expression(op: String, left: Object, right: Object, env: &mut Environment) -> Object {
+fn eval_infix_expression(op: String, left: Object, right: Object) -> Object {
     match (left.clone(), right.clone()) {
         (Object::Integer(left), Object::Integer(right)) => {
-            eval_integer_infix_expression(op, left, right, env)
+            eval_integer_infix_expression(op, left, right)
         }
         (Object::Boolean(left), Object::Boolean(right)) => {
-            eval_boolean_infix_expression(op, left, right, env)
+            eval_boolean_infix_expression(op, left, right)
         }
         (Object::Integer(left), Object::Boolean(right)) => {
             new_error(format!("type mismatch: {} {} {}", left, op, right))
@@ -170,16 +170,14 @@ fn eval_infix_expression(op: String, left: Object, right: Object, env: &mut Envi
         (Object::Boolean(left), Object::Integer(right)) => {
             new_error(format!("type mismatch: {} {} {}", left, op, right))
         }
+        (Object::String(left), Object::String(right)) => {
+            eval_string_infix_expression(op, left, right)
+        }
         _ => new_error(format!("unknown operator: {} {} {}", left, op, right)),
     }
 }
 
-fn eval_integer_infix_expression(
-    op: String,
-    left: i64,
-    right: i64,
-    env: &mut Environment,
-) -> Object {
+fn eval_integer_infix_expression(op: String, left: i64, right: i64) -> Object {
     match op.as_str() {
         "+" => Object::Integer(left + right),
         "-" => Object::Integer(left - right),
@@ -193,16 +191,19 @@ fn eval_integer_infix_expression(
     }
 }
 
-fn eval_boolean_infix_expression(
-    op: String,
-    left: &BoolValue,
-    right: &BoolValue,
-    env: &mut Environment,
-) -> Object {
+fn eval_string_infix_expression(op: String, left: String, right: String) -> Object {
+    if op != "+" {
+        return new_error(format!("unknown operator: {} {} {}", left, op, right));
+    }
+
+    Object::String(left + &right)
+}
+
+fn eval_boolean_infix_expression(op: String, left: &BoolValue, right: &BoolValue) -> Object {
     match op.as_str() {
         "==" => Object::Boolean(bool_to_object(left.value == right.value)),
         "!=" => Object::Boolean(bool_to_object(left.value != right.value)),
-        _ => new_error((format!("unknown operator: {} {} {}", left, op, right))),
+        _ => new_error(format!("unknown operator: {} {} {}", left, op, right)),
     }
 }
 
@@ -309,7 +310,26 @@ mod tests {
 
         match result {
             Object::String(string) => {
-                assert_eq!(string, "Hello World!", "Unexpected boolean value");
+                assert_eq!(string, "Hello World!", "Unexpected string value");
+            }
+            _ => panic!("Unexpected object type, {}", result),
+        }
+    }
+
+    #[test]
+    fn test_string_cancatenation() {
+        let input = "\"Hello\" + \" \" + \"World!\"";
+
+        let lexer = Lexer::new(input);
+        let mut parser = Parser::new(lexer);
+
+        let program = parser.parse_program();
+        let env = &mut Environment::new();
+        let result = eval(program, env);
+
+        match result {
+            Object::String(string) => {
+                assert_eq!(string, "Hello World!", "Unexpected string value");
             }
             _ => panic!("Unexpected object type, {}", result),
         }
@@ -494,6 +514,7 @@ mod tests {
             "5; true + false; 5;",
             "if (10 > 1) { true + false }",
             "foobar",
+            "\"Hello\" - \"World\"",
         ];
 
         let expected_list = vec![
@@ -504,6 +525,7 @@ mod tests {
             "unknown operator: true + false",
             "unknown operator: true + false",
             "identifier not found: foobar",
+            "unknown operator: Hello - World",
         ];
 
         for (i, input) in inputs.iter().enumerate() {
