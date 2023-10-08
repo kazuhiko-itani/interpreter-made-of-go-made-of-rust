@@ -46,6 +46,7 @@ impl Parser {
         self.register_prefix(TokenType::LPAREN, Self::parse_grouped_expression);
         self.register_prefix(TokenType::IF, Self::parse_if_expression);
         self.register_prefix(TokenType::FUNCTION, Self::parse_function_expression);
+        self.register_prefix(TokenType::LBRACKET, Self::parse_array_literal);
     }
 
     fn setup_infix_parse_fns(&mut self) {
@@ -58,6 +59,7 @@ impl Parser {
         self.register_infix(TokenType::GT, Self::parse_infix_expression);
         self.register_infix(TokenType::LT, Self::parse_infix_expression);
         self.register_infix(TokenType::LPAREN, Self::parse_call_expression);
+        self.register_infix(TokenType::LBRACKET, Self::parse_index_experssion);
     }
 
     fn register_prefix(&mut self, token_type: TokenType, func: PrefixParseFn) {
@@ -130,6 +132,7 @@ impl Parser {
             TokenType::SLASH => Precedence::Product,
             TokenType::ASTERISK => Precedence::Product,
             TokenType::LPAREN => Precedence::Call,
+            TokenType::LBRACKET => Precedence::Index,
             _ => Precedence::Lowest,
         }
     }
@@ -145,6 +148,7 @@ impl Parser {
             TokenType::SLASH => Precedence::Product,
             TokenType::ASTERISK => Precedence::Product,
             TokenType::LPAREN => Precedence::Call,
+            TokenType::LBRACKET => Precedence::Index,
             _ => Precedence::Lowest,
         }
     }
@@ -408,7 +412,7 @@ impl Parser {
     }
 
     fn parse_call_expression(&mut self, function: Expression) -> Option<Expression> {
-        let arguments = self.parse_call_arguments();
+        let arguments = self.parse_expression_list(TokenType::RPAREN);
         if let Some(args) = arguments {
             return Some(Expression::Call(Box::new(function), args));
         } else {
@@ -416,34 +420,64 @@ impl Parser {
         }
     }
 
-    fn parse_call_arguments(&mut self) -> Option<Vec<Expression>> {
-        let mut arguments = vec![];
+    fn parse_array_literal(&mut self) -> Option<Expression> {
+        let elements = self.parse_expression_list(TokenType::RBRACKET);
 
-        if self.peek_token_is(TokenType::RPAREN) {
+        if let Some(elements) = elements {
+            Some(Expression::ArrayLiteral(elements))
+        } else {
+            None
+        }
+    }
+
+    fn parse_expression_list(&mut self, end: TokenType) -> Option<Vec<Expression>> {
+        let mut list = vec![];
+
+        if self.peek_token_is(end.clone()) {
             self.next_token();
-            return Some(arguments);
+            return Some(list);
         }
 
         self.next_token();
 
-        if let Some(argument) = self.parse_expression(Precedence::Lowest) {
-            arguments.push(argument);
+        if let Some(value) = self.parse_expression(Precedence::Lowest) {
+            list.push(value);
+        } else {
+            return None;
         }
 
         while self.peek_token_is(TokenType::COMMA) {
             self.next_token();
             self.next_token();
 
-            if let Some(argument) = self.parse_expression(Precedence::Lowest) {
-                arguments.push(argument);
+            if let Some(value) = self.parse_expression(Precedence::Lowest) {
+                list.push(value);
+            } else {
+                return None;
             }
         }
 
-        if !self.expect_peek(TokenType::RPAREN) {
+        if !self.expect_peek(end) {
             return None;
         }
 
-        Some(arguments)
+        Some(list)
+    }
+
+    fn parse_index_experssion(&mut self, left: Expression) -> Option<Expression> {
+        self.next_token();
+
+        let index = self.parse_expression(Precedence::Lowest);
+
+        if !self.expect_peek(TokenType::RBRACKET) {
+            return None;
+        }
+
+        if let Some(index) = index {
+            Some(Expression::IndexExpression(Box::new(left), Box::new(index)))
+        } else {
+            None
+        }
     }
 
     fn parse_prefix_expression(&mut self) -> Option<Expression> {
@@ -494,6 +528,8 @@ mod tests {
             2 / (5 + 5);
             -(5 + 5);
             !(true == true);
+            a * [1, 2, 3, 4][b * c] * d;
+            add(a * b[2], b[1], 2 * [1, 2][1]);
         ";
 
         let lexer = Lexer::new(input);
@@ -522,13 +558,15 @@ mod tests {
             "(2 / (5 + 5));".to_string(),
             "(-(5 + 5));".to_string(),
             "(!(true == true));".to_string(),
+            "((a * ([1, 2, 3, 4][(b * c)])) * d);".to_string(),
+            "add((a * (b[2])), (b[1]), (2 * ([1, 2][1])));".to_string(),
         ];
 
         assert_eq!(parser.errors.len(), 0, "Unvalid statements found");
 
         assert_eq!(
             program.statements.len(),
-            19,
+            21,
             "Unexpected number of statements"
         );
 
@@ -569,6 +607,83 @@ mod tests {
                 _ => panic!("Unexpected statement type"),
             }
         }
+    }
+
+    #[test]
+    fn test_array_literals_parsing() {
+        let input = "[1, 2 * 2, 3 + 3]";
+
+        let lexer = Lexer::new(input);
+        let mut parser = Parser::new(lexer);
+
+        let program = parser.parse_program();
+
+        assert_eq!(
+            parser.errors.len(),
+            0,
+            "Unvalid statements found. {:?}",
+            parser.errors
+        );
+
+        assert_eq!(
+            program.statements.len(),
+            1,
+            "Unexpected number of statements"
+        );
+
+        assert_eq!(
+            program.statements[0],
+            Statement::Expression(Expression::ArrayLiteral(vec![
+                Expression::IntegerLiteral(1),
+                Expression::Infix(
+                    Box::new(Expression::IntegerLiteral(2)),
+                    "*".to_string(),
+                    Box::new(Expression::IntegerLiteral(2)),
+                ),
+                Expression::Infix(
+                    Box::new(Expression::IntegerLiteral(3)),
+                    "+".to_string(),
+                    Box::new(Expression::IntegerLiteral(3)),
+                )
+            ])),
+            "Unexpected value of array literal"
+        );
+    }
+
+    #[test]
+    fn test_index_expression_parsing() {
+        let input = "myArray[1 + 1]";
+
+        let lexer = Lexer::new(input);
+        let mut parser = Parser::new(lexer);
+
+        let program = parser.parse_program();
+
+        assert_eq!(
+            parser.errors.len(),
+            0,
+            "Unvalid statements found. {:?}",
+            parser.errors
+        );
+
+        assert_eq!(
+            program.statements.len(),
+            1,
+            "Unexpected number of statements"
+        );
+
+        assert_eq!(
+            program.statements[0],
+            Statement::Expression(Expression::IndexExpression(
+                Box::new(Expression::Ident("myArray".to_string())),
+                Box::new(Expression::Infix(
+                    Box::new(Expression::IntegerLiteral(1)),
+                    "+".to_string(),
+                    Box::new(Expression::IntegerLiteral(1)),
+                ))
+            )),
+            "Unexpected value of array literal"
+        );
     }
 
     #[test]

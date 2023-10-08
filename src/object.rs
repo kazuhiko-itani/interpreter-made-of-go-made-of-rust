@@ -32,6 +32,7 @@ impl fmt::Display for Null {
 pub enum Object {
     Integer(i64),
     String(String),
+    Array(Vec<Object>),
     Boolean(&'static BoolValue),
     ReturnValue(Box<Object>),
     Function(Vec<String>, Vec<Statement>, Environment),
@@ -45,6 +46,18 @@ impl fmt::Display for Object {
         match self {
             Object::Integer(integer) => write!(f, "{}", integer),
             Object::String(string) => write!(f, "\"{}\"", string),
+            Object::Array(values) => {
+                write!(f, "[").unwrap();
+
+                for (i, value) in values.iter().enumerate() {
+                    write!(f, "{}", value).unwrap();
+                    if i != values.len() - 1 {
+                        write!(f, ",").unwrap();
+                    }
+                }
+
+                write!(f, "]")
+            }
             Object::Boolean(boolean) => write!(f, "{}", boolean),
             Object::ReturnValue(obj) => write!(f, "{}", obj),
             Object::Function(args, body, env) => {

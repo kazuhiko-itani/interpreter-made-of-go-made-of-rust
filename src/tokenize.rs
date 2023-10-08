@@ -17,6 +17,8 @@ pub enum TokenType {
     RPAREN,
     LBRACE,
     RBRACE,
+    LBRACKET,
+    RBRACKET,
     COMMA,
     PLUS,
     MINUS,
@@ -103,6 +105,14 @@ impl Lexer {
             Some('}') => Token {
                 token_type: TokenType::RBRACE,
                 literal: "}".to_string(),
+            },
+            Some('[') => Token {
+                token_type: TokenType::LBRACKET,
+                literal: "[".to_string(),
+            },
+            Some(']') => Token {
+                token_type: TokenType::RBRACKET,
+                literal: "]".to_string(),
             },
             Some(',') => Token {
                 token_type: TokenType::COMMA,
@@ -279,6 +289,7 @@ mod tests {
 
         \"foobar\"
         \"foo bar\"
+        [1, 2];
         ";
 
         let mut lexer = Lexer::new(input);
@@ -583,6 +594,30 @@ mod tests {
             Token {
                 token_type: TokenType::STRING,
                 literal: "foo bar".to_string(),
+            },
+            Token {
+                token_type: TokenType::LBRACKET,
+                literal: "[".to_string(),
+            },
+            Token {
+                token_type: TokenType::INT,
+                literal: "1".to_string(),
+            },
+            Token {
+                token_type: TokenType::COMMA,
+                literal: ",".to_string(),
+            },
+            Token {
+                token_type: TokenType::INT,
+                literal: "2".to_string(),
+            },
+            Token {
+                token_type: TokenType::RBRACKET,
+                literal: "]".to_string(),
+            },
+            Token {
+                token_type: TokenType::SEMICOLON,
+                literal: ";".to_string(),
             },
             Token {
                 token_type: TokenType::EOF,

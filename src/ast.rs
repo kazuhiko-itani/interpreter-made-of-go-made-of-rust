@@ -13,8 +13,9 @@ pub enum Expression {
     Ident(String),
     IntegerLiteral(i64),
     StringLiteral(String),
+    ArrayLiteral(Vec<Expression>),
+    IndexExpression(Box<Expression>, Box<Expression>),
     Function(Vec<String>, Vec<Statement>),
-    Return(Box<Expression>),
     Prefix(String, Box<Expression>),
     Infix(Box<Expression>, String, Box<Expression>),
     Boolean(String),
@@ -38,6 +39,19 @@ impl fmt::Display for Expression {
             Expression::Ident(ident) => write!(f, "{}", ident),
             Expression::IntegerLiteral(int) => write!(f, "{}", int),
             Expression::StringLiteral(string) => write!(f, "\"{}\"", string),
+            Expression::ArrayLiteral(elements) => {
+                let mut elements_str = String::new();
+
+                for (i, element) in elements.iter().enumerate() {
+                    elements_str.push_str(&element.to_string());
+                    if i != elements.len() - 1 {
+                        elements_str.push_str(", ");
+                    }
+                }
+
+                write!(f, "[{}]", elements_str)
+            }
+            Expression::IndexExpression(left, index) => write!(f, "({}[{}])", left, index),
             Expression::Function(params, body) => {
                 let mut params_str = String::new();
 
@@ -57,7 +71,6 @@ impl fmt::Display for Expression {
 
                 write!(f, "fn({}) {{ {} }}", params_str, body_str)
             }
-            Expression::Return(expr) => write!(f, "return {}", expr),
             Expression::Prefix(op, expr) => write!(f, "({}{})", op, expr),
             Expression::Infix(left, op, right) => write!(f, "({} {} {})", left, op, right),
             Expression::Boolean(boolean) => write!(f, "{}", boolean),
@@ -114,4 +127,5 @@ pub enum Precedence {
     Product = 4,
     Prefix = 5,
     Call = 6,
+    Index = 7,
 }

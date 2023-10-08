@@ -61,6 +61,33 @@ fn eval_expression(expression: Expression, env: &mut Environment) -> Object {
                 Object::Boolean(&FALSE)
             }
         }
+        Expression::ArrayLiteral(elements) => {
+            let mut evaluated_elements: Vec<Object> = vec![];
+
+            for element in elements {
+                let evaluated = eval_expression(element, env);
+                if is_error(&evaluated) {
+                    return evaluated;
+                }
+
+                evaluated_elements.push(evaluated)
+            }
+
+            Object::Array(evaluated_elements)
+        }
+        Expression::IndexExpression(left, index) => {
+            let left = eval_expression(*left, env);
+            if is_error(&left) {
+                return left;
+            }
+
+            let index = eval_expression(*index, env);
+            if is_error(&index) {
+                return index;
+            }
+
+            eval_index_expression(left, index)
+        }
         Expression::Prefix(op, expr) => {
             let right = eval_expression(*expr, env);
             if is_error(&right) {
@@ -209,6 +236,30 @@ fn eval_boolean_infix_expression(op: String, left: &BoolValue, right: &BoolValue
     }
 }
 
+fn eval_index_expression(left: Object, index: Object) -> Object {
+    match (left.clone(), index) {
+        (Object::Array(elements), Object::Integer(index)) => {
+            return eval_array_index_expression(elements, index)
+        }
+        _ => new_error(format!("index operator not supported: {}", left)),
+    }
+}
+
+fn eval_array_index_expression(array: Vec<Object>, index: i64) -> Object {
+    if index < 0 {
+        return Object::Null(&NULL);
+    }
+
+    let index = index as usize;
+    let max = array.len() - 1;
+
+    if index.clone() > max {
+        return Object::Null(&NULL);
+    }
+
+    array[index].clone()
+}
+
 fn apply_function(func: Object, args: Vec<Object>) -> Object {
     match func {
         Object::Function(params, body, env) => {
@@ -339,6 +390,79 @@ mod tests {
                 assert_eq!(string, "Hello World!", "Unexpected string value");
             }
             _ => panic!("Unexpected object type, {}", result),
+        }
+    }
+
+    #[test]
+    fn test_eval_array_literals() {
+        let input = "[1, 2 * 2, 3 + 3]";
+
+        let expected_list = vec![1, 4, 6];
+
+        let lexer = Lexer::new(input);
+        let mut parser = Parser::new(lexer);
+
+        let program = parser.parse_program();
+        let mut env = create_env();
+        let result = eval(program, &mut env);
+
+        match result {
+            Object::Array(array) => {
+                for (i, value) in array.iter().enumerate() {
+                    match value {
+                        Object::Integer(integer) => {
+                            assert_eq!(integer, &expected_list[i], "Unexpected integer value");
+                        }
+                        _ => panic!("Unexpected object type"),
+                    }
+                }
+            }
+            _ => panic!("Unexpected object type, {}", result),
+        }
+    }
+
+    #[test]
+    fn test_eval_array_index_expressions() {
+        let inputs = vec![
+            "[1, 2, 3][0];",
+            "[1, 2, 3][1];",
+            "let i = 0; [1][i];",
+            "let myArray = [1, 2, 3]; myArray[0] + myArray[1] + myArray[2];",
+            "let myArray = [1, 2, 3] let i = myArray[0]; myArray[i];",
+        ];
+
+        let expected_list = vec![1, 2, 1, 6, 2];
+
+        for (i, input) in inputs.iter().enumerate() {
+            let lexer = Lexer::new(input);
+            let mut parser = Parser::new(lexer);
+
+            let program = parser.parse_program();
+            let mut env = create_env();
+            let result = eval(program, &mut env);
+
+            match result {
+                Object::Integer(integer) => {
+                    assert_eq!(integer, expected_list[i], "Unexpected integer value");
+                }
+                _ => panic!("Unexpected object type. {}", result),
+            }
+        }
+
+        let wrong_inputs = vec!["[1, 2, 3][3];", "[1, 2, 3][-1];"];
+
+        for (_, input) in wrong_inputs.iter().enumerate() {
+            let lexer = Lexer::new(input);
+            let mut parser = Parser::new(lexer);
+
+            let program = parser.parse_program();
+            let mut env = create_env();
+            let result = eval(program, &mut env);
+
+            match result {
+                Object::Null(_) => {}
+                _ => panic!("Unexpected object type. {}", result),
+            }
         }
     }
 
