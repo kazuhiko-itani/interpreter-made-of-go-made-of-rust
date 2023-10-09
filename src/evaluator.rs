@@ -522,6 +522,34 @@ mod tests {
     }
 
     #[test]
+    fn test_eval_builtin_rest() {
+        let input = "rest([1, 2, 3])";
+
+        let expected = vec![2, 3];
+
+        let lexer = Lexer::new(input);
+        let mut parser = Parser::new(lexer);
+
+        let program = parser.parse_program();
+        let mut env = create_env();
+        let result = eval(program, &mut env);
+
+        match result {
+            Object::Array(array) => {
+                for (i, value) in array.iter().enumerate() {
+                    match value {
+                        Object::Integer(integer) => {
+                            assert_eq!(integer, &expected[i], "Unexpected integer value");
+                        }
+                        _ => panic!("Unexpected object type"),
+                    }
+                }
+            }
+            _ => panic!("Unexpected object type. {}", result),
+        }
+    }
+
+    #[test]
     fn test_eval_bool() {
         let inputs = vec![
             "true;",
@@ -843,6 +871,7 @@ mod tests {
         env.register_builtin("len", builtins::builtin_len);
         env.register_builtin("first", builtins::builtin_first);
         env.register_builtin("last", builtins::builtin_last);
+        env.register_builtin("rest", builtins::builtin_rest);
 
         env
     }

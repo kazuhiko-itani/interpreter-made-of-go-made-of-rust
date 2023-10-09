@@ -62,6 +62,7 @@ impl Repl {
         env.register_builtin("len", builtins::builtin_len);
         env.register_builtin("first", builtins::builtin_first);
         env.register_builtin("last", builtins::builtin_last);
+        env.register_builtin("rest", builtins::builtin_rest);
     }
 }
 
