@@ -70,3 +70,27 @@ pub fn builtin_rest(args: Vec<Object>) -> Object {
         _ => new_error(format!("argument to `last` must be ARRAY, got {}", args[0])),
     }
 }
+
+pub fn builtin_push(args: Vec<Object>) -> Object {
+    if args.len() != 2 {
+        return new_error(format!(
+            "wrong number of arguments. got={}, want=2",
+            args.len()
+        ));
+    }
+
+    match &args[0] {
+        Object::Array(array) => {
+            let mut new_array = Vec::new();
+
+            for value in array.iter() {
+                new_array.push(value.clone());
+            }
+
+            new_array.push(args[1].clone());
+
+            Object::Array(new_array)
+        }
+        _ => new_error(format!("argument to `push` must be ARRAY, got {}", args[0])),
+    }
+}
