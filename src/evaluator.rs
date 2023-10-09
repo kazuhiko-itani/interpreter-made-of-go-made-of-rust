@@ -474,9 +474,10 @@ mod tests {
             "len(\"hello world\");",
             "len([1, 2, 3])",
             "first([1, 2, 3])",
+            "last([1, 2, 3])",
         ];
 
-        let expected_list = vec![0, 4, 11, 3, 1];
+        let expected_list = vec![0, 4, 11, 3, 1, 3];
 
         for (i, input) in inputs.iter().enumerate() {
             let lexer = Lexer::new(input);
@@ -494,12 +495,13 @@ mod tests {
             }
         }
 
-        let wrong_inputs = vec!["len(1);", "len(\"one\", \"two\"); first(1)"];
+        let wrong_inputs = vec!["len(1);", "len(\"one\", \"two\");", "first(1)", "last(1)"];
 
         let expected_error_list = vec![
             "argument to `len` not supported, got 1",
             "wrong number of arguments. got=2, want=1",
-            "argument to `len` not supported, got 1",
+            "argument to `first` must be ARRAY, got 1",
+            "argument to `last` must be ARRAY, got 1",
         ];
 
         for (i, input) in wrong_inputs.iter().enumerate() {
@@ -840,6 +842,7 @@ mod tests {
 
         env.register_builtin("len", builtins::builtin_len);
         env.register_builtin("first", builtins::builtin_first);
+        env.register_builtin("last", builtins::builtin_last);
 
         env
     }

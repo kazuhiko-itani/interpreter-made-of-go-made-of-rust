@@ -32,3 +32,17 @@ pub fn builtin_first(args: Vec<Object>) -> Object {
         )),
     }
 }
+
+pub fn builtin_last(args: Vec<Object>) -> Object {
+    if args.len() != 1 {
+        return new_error(format!(
+            "wrong number of arguments. got={}, want=1",
+            args.len()
+        ));
+    }
+
+    match &args[0] {
+        Object::Array(array) => array[array.len() - 1].clone(),
+        _ => new_error(format!("argument to `last` must be ARRAY, got {}", args[0])),
+    }
+}
