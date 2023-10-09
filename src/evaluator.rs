@@ -312,7 +312,7 @@ fn is_error(obj: &Object) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::builtins::builtin_len;
+    use crate::builtins;
     use crate::parse::Parser;
     use crate::tokenize::Lexer;
 
@@ -468,9 +468,15 @@ mod tests {
 
     #[test]
     fn test_eval_builtin_functions() {
-        let inputs = vec!["len(\"\");", "len(\"four\");", "len(\"hello world\");"];
+        let inputs = vec![
+            "len(\"\");",
+            "len(\"four\");",
+            "len(\"hello world\");",
+            "len([1, 2, 3])",
+            "first([1, 2, 3])",
+        ];
 
-        let expected_list = vec![0, 4, 11];
+        let expected_list = vec![0, 4, 11, 3, 1];
 
         for (i, input) in inputs.iter().enumerate() {
             let lexer = Lexer::new(input);
@@ -488,11 +494,12 @@ mod tests {
             }
         }
 
-        let wrong_inputs = vec!["len(1);", "len(\"one\", \"two\");"];
+        let wrong_inputs = vec!["len(1);", "len(\"one\", \"two\"); first(1)"];
 
         let expected_error_list = vec![
             "argument to `len` not supported, got 1",
             "wrong number of arguments. got=2, want=1",
+            "argument to `len` not supported, got 1",
         ];
 
         for (i, input) in wrong_inputs.iter().enumerate() {
@@ -831,7 +838,8 @@ mod tests {
     fn create_env() -> Environment {
         let mut env = Environment::new();
 
-        env.register_builtin("len", builtin_len);
+        env.register_builtin("len", builtins::builtin_len);
+        env.register_builtin("first", builtins::builtin_first);
 
         env
     }

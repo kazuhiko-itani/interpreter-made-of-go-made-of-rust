@@ -60,6 +60,7 @@ impl Repl {
 
     fn set_builtin_func_to_env(&self, env: &mut object::Environment) {
         env.register_builtin("len", builtins::builtin_len);
+        env.register_builtin("first", builtins::builtin_first);
     }
 }
 
